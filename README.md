@@ -11,10 +11,6 @@
 - **数据管理**：导入 / 导出全部数据，支持在不同设备间迁移
 - **开源免费**：代码完全开源，无广告、无付费墙
 
-## 入驻平台
-
-本项目已入驻 [爱发电](https://afdian.com/a/lampe9703)。
-
 ## 下载
 
 - [GitHub Releases](https://github.com/lampe9703/silas-rp/releases) — 最新 APK
