@@ -1,14 +1,30 @@
-Noto Sans SC
-Copyright (c) 2014-2021 Adobe (http://www.adobe.com/),
-with Reserved Font Name 'Source'.
+Silas RP 内置字体许可声明
+==========================
 
-本应用内置的 assets/fonts/NotoSansSC-Regular.ttf 由上述字体派生：
-将可变字体实例化为 wght=400，并子集化到 GB2312 汉字与常用符号。
-该文件不包含 Reserved Font Name（'Source'），符合下述许可第 3 条。
+本应用内置的 assets/fonts/SilasWenKai-Regular.ttf 是霞鹜文楷
+(LXGW WenKai, https://github.com/lxgw/LxgwWenKai) v1.530 Regular 的
+子集化版本，仅保留 GB2312 汉字与常用符号区间字形。
 
-------------------------------------------------------------
+霞鹜文楷的 SIL OFL 1.1 声明了保留字体名 (Reserved Font Name)
+'霞鹜'、'霞鶩'、'落霞孤鹜'、'落霞孤鶩'、'LXGW'。子集化属于修改版本，
+按 OFL 规定不得继续使用保留名，因此本应用内置字体的内部名称已改为
+'Silas WenKai'，未对字形做任何改动。
 
+原始版权与许可全文如下。
+
+--------------------------------------------------------------------------
+
+Copyright 2021-2026 LXGW (https://github.com/lxgw/LxgwWenKai), with Reserved Font Name '霞鹜', '霞鶩', '落霞孤鹜', '落霞孤鶩' and 'LXGW'. [ADDITIONAL PERMISSION] The Reserved Font Names '霞鹜', '霞鶩', '落霞孤鹜', '落霞孤鶩' and 'LXGW' may continue to be used in Modified Versions recompiled from the Original Version, without modifications to the font source code; or in Modified Versions subsetted or converted to other formats (e.g., WOFF/WOFF2) solely for web font delivery, provided such Modified Versions are not made available as installable desktop fonts (e.g., on mainstream platforms like Google Fonts, or third-party non-commercial platforms recognized by the author @lxgw; other web font platforms please contact the author @lxgw for confirmation).
+Copyright 2020 The Klee Project Authors (https://github.com/fontworks-fonts/Klee)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is copied below, and is also available with a FAQ at:
+https://openfontlicense.org
+
+
+-----------------------------------------------------------
 SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+-----------------------------------------------------------
 
 PREAMBLE
 The goals of the Open Font License (OFL) are to stimulate worldwide
@@ -19,7 +35,7 @@ with others.
 
 The OFL allows the licensed fonts to be used, studied, modified and
 redistributed freely as long as they are not sold by themselves. The
-fonts, including any derivative works, can be bundled, embedded,
+fonts, including any derivative works, can be bundled, embedded, 
 redistributed and/or sold with any software provided that any reserved
 names are not used by derivative works. The fonts and derivatives,
 however, cannot be released under any other type of license. The

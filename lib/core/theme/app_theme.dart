@@ -4,10 +4,13 @@ import 'glass_theme.dart';
 
 /// 内置的简体中文字族（见 pubspec 的 fonts 段）。
 ///
+/// 实际字体为霞鹜文楷（LXGW WenKai）的子集，按 OFL 保留字体名要求
+/// 已改名为「Silas WenKai」，此处的 family 与 pubspec 保持一致。
+///
 /// 注意：`listTileTheme.titleTextStyle`、`appBarTheme.titleTextStyle` 这类
 /// 显式 style 会**整段替换**继承来的 DefaultTextStyle，字体族必须自己带上，
 /// 否则会出现「改了主题字体但某个控件没变」的假象。
-const String kCjkFamily = 'NotoSansSC';
+const String kCjkFamily = 'SilasWenKai';
 
 class AppTheme {
   static const Color seed = GlassPalette.sky;

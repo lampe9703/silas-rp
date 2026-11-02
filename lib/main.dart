@@ -16,9 +16,11 @@ import 'features/characters/data/avatar_storage.dart';
 void _registerBundledFontLicense() {
   LicenseRegistry.addLicense(() async* {
     final text =
-        await rootBundle.loadString('assets/licenses/OFL-NotoSansSC.txt');
+        await rootBundle.loadString('assets/licenses/OFL-LXGWWenKai.txt');
     yield LicenseEntryWithLineBreaks(
-      const <String>['NotoSansSC-Regular.ttf（内置简体中文字形）'],
+      const <String>[
+        'LXGW WenKai（霞鹜文楷）子集，按 OFL 保留字体名要求改名为 Silas WenKai',
+      ],
       text,
     );
   });

@@ -52,18 +52,20 @@ flutter:
   # 代码里通过 LicenseRegistry 注册后在「关于 → 开源许可」里展示。
   assets:
     - assets/licenses/
-  # 内置简体中文字形。
+  # 内置中文字体：霞鹜文楷（LXGW WenKai）子集。
   #
-  # 起因：Android 的 NotoSansCJK 是一个 TTC，内含 JP/KR/SC/TC/HK 五套字形，
-  # 同一码位形状不同（实测「关」JP 套墨迹 721、SC 套 913）。不少 ROM 的
-  # fonts.xml 把 zh-Hans 指向了 JP 那套，简中字会被画成日式写法。
+  # 为什么自带字体：Android 的 NotoSansCJK 是一个 TTC，内含 JP/KR/SC/TC/HK
+  # 五套字形，同一码位形状不同（实测「关」JP 套墨迹 721、SC 套 913）。
+  # 不少 ROM 的 fonts.xml 把 zh-Hans 指向了 JP 那套，简中字会被画成日式写法。
   # 应用层无法切换（locale / 字体族名 / fallback 链都试过，真机验证无效），
-  # 所以自带一份 SC 字形。
+  # 所以自带一份中文字形；顺带统一了视觉风格。
   #
-  # 来源：Google Fonts 的 Noto Sans SC（SIL OFL 1.1，可随包分发）
-  # 处理：可变字体实例化为 wght=400，再子集化到 GB2312 全部汉字 + 常用符号，
-  #       16.9MB → 2.2MB。生僻字仍回退系统字体。
+  # 来源：lxgw/LxgwWenKai v1.530 Regular（SIL OFL 1.1，可随包分发）
+  # 处理：子集化到 GB2312 全部汉字 + 常用符号，24.7MB → 3.4MB。
+  #       霞鹜文楷声明了保留字体名（Reserved Font Name），子集化属修改版本，
+  #       按 OFL 要求已改名，内部字体名为「Silas WenKai」。
+  #       生僻字仍回退系统字体。
   fonts:
-    - family: NotoSansSC
+    - family: SilasWenKai
       fonts:
-        - asset: assets/fonts/NotoSansSC-Regular.ttf
+        - asset: assets/fonts/SilasWenKai-Regular.ttf

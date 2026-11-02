@@ -1,13 +1,23 @@
-"""把 Noto Sans SC 可变字体实例化为 Regular 并子集化，控制内置体积。"""
+"""把霞鹜文楷 LXGW WenKai Regular 子集化，控制内置体积。
+
+与 subset_font.py 保持同一套码位策略（GB2312 + 常用符号区间），
+保证界面里出现的中文字形覆盖一致。
+"""
 import os
-import sys
 
 from fontTools import subset
 from fontTools.ttLib import TTFont
-from fontTools.varLib.instancer import instantiateVariableFont
 
-SRC = r"C:\Users\lively lampe\WorkBuddy AI\2026-10-24-01-14-03\ai_roleplay\assets\fonts\NotoSansSC-VF.ttf"
-DST = r"C:\Users\lively lampe\WorkBuddy AI\2026-10-24-01-14-03\ai_roleplay\assets\fonts\NotoSansSC-Regular.ttf"
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC = os.path.join(BASE, '..', '_tmp_font', 'LXGWWenKai-Regular.ttf')
+DST = os.path.join(BASE, 'assets', 'fonts', 'SilasWenKai-Regular.ttf')
+
+# 霞鹜文楷的 OFL 声明了保留字体名（Reserved Font Name）：'霞鹜'、'LXGW' 等。
+# 子集化属于「修改版本」，按 OFL 规定不得继续使用保留名，故改名。
+NEW_FAMILY = 'Silas WenKai'
+NEW_FULL = 'Silas WenKai Regular'
+NEW_PS = 'SilasWenKai-Regular'
+NEW_VERSION = 'Version 1.530 (subset of LXGW WenKai)'
 
 
 def gb2312_chars():
@@ -25,7 +35,6 @@ def main():
     chars = gb2312_chars()
     print('GB2312 汉字/符号:', len(chars))
 
-    # 常用符号、标点、拉丁、全角、箭头、数学符号
     ranges = [
         (0x0020, 0x007E), (0x00A0, 0x00FF), (0x2000, 0x206F),
         (0x20A0, 0x20BF), (0x2190, 0x21FF), (0x2200, 0x22FF),
@@ -36,21 +45,13 @@ def main():
     for lo, hi in ranges:
         unicodes.update(range(lo, hi + 1))
     unicodes.update(ord(c) for c in chars)
-    # 界面里会出现的几个特殊字符
     for c in '·—…“”‘’《》〈〉「」『』【】％℃±×÷≈≤≥√∞':
         unicodes.add(ord(c))
 
     print('目标码位:', len(unicodes))
 
     font = TTFont(SRC)
-    print('原始 表:', 'fvar' in font)
 
-    # 1) 实例化成静态 Regular（去掉 wght 轴，体积立降）
-    if 'fvar' in font:
-        instantiateVariableFont(font, {'wght': 400}, inplace=True)
-        print('已实例化为 wght=400')
-
-    # 2) 子集化
     opts = subset.Options()
     opts.layout_features = ['*']
     opts.name_IDs = ['*']
@@ -62,6 +63,23 @@ def main():
     subsetter = subset.Subsetter(options=opts)
     subsetter.populate(unicodes=unicodes)
     subsetter.subset(font)
+
+    # 3) 改名：避免使用 OFL 保留字体名
+    name_table = font['name']
+    replacements = {
+        1: NEW_FAMILY,          # Family
+        3: f'{NEW_VERSION};SilasWenKai',  # Unique ID
+        4: NEW_FULL,            # Full name
+        6: NEW_PS,              # PostScript name
+        16: NEW_FAMILY,         # Typographic Family
+        17: NEW_FULL,           # Typographic Subfamily
+    }
+    for record in name_table.names:
+        if record.nameID in replacements:
+            record.string = replacements[record.nameID].encode(record.getEncoding())
+        elif record.nameID == 5:  # Version string
+            record.string = NEW_VERSION.encode(record.getEncoding())
+    print('已重命名字体:', NEW_FAMILY)
 
     font.save(DST)
     src_mb = os.path.getsize(SRC) / 1024 / 1024

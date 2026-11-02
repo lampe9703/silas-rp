@@ -66,6 +66,18 @@ lib/
 └── main.dart
 ```
 
+## 第三方资源
+
+### 字体
+
+内置字体为 [霞鹜文楷 LXGW WenKai](https://github.com/lxgw/LxgwWenKai) v1.530 Regular 的子集，
+作者 [LXGW](https://github.com/lxgw)，基于 SIL Open Font License 1.1 授权。
+
+- 仅保留 GB2312 汉字与常用符号区间字形，24.7 MB → 3.4 MB
+- 霞鹜文楷声明了保留字体名（Reserved Font Name），子集化属于修改版本，
+  按 OFL 要求已将内部字体名改为 `Silas WenKai`，字形未作任何改动
+- 许可全文见 [assets/licenses/OFL-LXGWWenKai.txt](assets/licenses/OFL-LXGWWenKai.txt)
+
 ## 许可证
 
 [GNU General Public License v3.0](LICENSE)
