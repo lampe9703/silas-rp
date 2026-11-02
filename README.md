@@ -86,10 +86,12 @@ Copyright (C) 2025 lampe9703
 
 ## 支持作者
 
-如果这个 App 陪你度过了一些无聊的夜晚：
+: )
 
-- ⭐ 在 GitHub 上给个 Star
-- ☕ [爱发电](https://afdian.com/a/lampe9703) 请我喝杯咖啡
+如果这一个软件，在无聊的夜晚中给你带来了一点点慰藉，愿意的话：
+
+- ⭐ 在 [GitHub](https://github.com/lampe9703/silas-rp) 上点一颗星
+- ☕ 在 [爱发电](https://afdian.com/a/lampe9703) 请我喝杯咖啡
 
 ## 免责声明
 
