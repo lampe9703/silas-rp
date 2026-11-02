@@ -53,12 +53,33 @@ class SettingsPage extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
+            // 符号表情：比正文大一档，但收在标题与链接行之间，不抢版面。
             Text(
-              '如果这个 App 陪你度过了一些无聊的夜晚',
+              ': )',
+              style: TextStyle(
+                fontSize: 30,
+                height: 1.0,
+                letterSpacing: 1.5,
+                fontWeight: FontWeight.w500,
+                color: scheme.primary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '如果这一个软件，在无聊的夜晚中给你带来了一点点慰藉',
               style: TextStyle(
                 fontSize: 13,
                 height: 1.7,
                 color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '愿意的话，可以在爱发电请我喝杯咖啡，或者在 GitHub 上点一颗星。',
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.7,
+                color: scheme.onSurfaceVariant.withOpacity(0.8),
               ),
             ),
             const SizedBox(height: 16),
