@@ -21,12 +21,19 @@ class TokenUsage {
 class ChatStreamEvent {
   const ChatStreamEvent({
     this.contentDelta,
+    this.reasoningDelta,
     this.isDone = false,
     this.finishReason,
     this.usage,
   });
 
   final String? contentDelta;
+
+  /// 思考过程的增量。
+  ///
+  /// 主流写法是 `delta.reasoning_content`（DeepSeek-R1 / GLM-Z1 / Qwen3 等），
+  /// 少数中转站用 `delta.reasoning`，两种都接。模型不返回时始终为 null。
+  final String? reasoningDelta;
   final bool isDone;
   final String? finishReason;
   final TokenUsage? usage;
@@ -190,8 +197,16 @@ class OpenAiClient {
           if (choice is Map) {
             final delta = choice['delta'];
             final content = delta is Map ? delta['content'] : null;
+            // 思考：delta.reasoning_content 为主，兼容 delta.reasoning；
+            // 个别中转把它放在 choice 一层，顺手也认一下。
+            final rawReasoning = delta is Map
+                ? (delta['reasoning_content'] ?? delta['reasoning'])
+                : (choice['reasoning_content'] ?? choice['reasoning']);
             final fr = choice['finish_reason'];
             if (fr is String && fr.isNotEmpty) finishReason = fr;
+            if (rawReasoning is String && rawReasoning.isNotEmpty) {
+              yield ChatStreamEvent(reasoningDelta: rawReasoning);
+            }
             if (content is String && content.isNotEmpty) {
               yield ChatStreamEvent(contentDelta: content, finishReason: finishReason);
             }

@@ -168,6 +168,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 PopupMenuItem(
                     value: 'greeting', child: Text('切换开场白')),
                 PopupMenuItem(value: 'params', child: Text('生成参数')),
+                PopupMenuItem(value: 'reasoning', child: Text('查看思考过程')),
                 PopupMenuItem(value: 'clear', child: Text('清空当前对话')),
                 PopupMenuItem(value: 'delete', child: Text('删除当前会话')),
               ],
@@ -322,6 +323,104 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     );
   }
 
+  /// 「查看思考过程」：把最近一条带 reasoning 的回复的思考过程展示出来。
+  ///
+  /// 只读、不参与任何提示词；模型不返回 reasoning 时给一句明确提示，
+  /// 而不是弹一个空面板。
+  Future<void> _showReasoning(ChatState state) async {
+    ChatMessage? target;
+    for (final m in state.messages.reversed) {
+      if (m.role == ChatRole.assistant && m.reasoning.trim().isNotEmpty) {
+        target = m;
+        break;
+      }
+    }
+    if (target == null) {
+      showToast(context, '当前会话没有可查看的思考内容：这个模型可能不返回 reasoning');
+      return;
+    }
+
+    final reasoning = target.reasoning.trim();
+    final preview = target.content.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final model = target.model;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final brightness = Theme.of(sheetContext).brightness;
+        final faint = GlassPalette.inkFaintOf(brightness);
+        final soft = GlassPalette.inkSoftOf(brightness);
+        return FractionallySizedBox(
+          heightFactor: 0.78,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+                child: Row(
+                  children: <Widget>[
+                    Text(
+                      '思考过程',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: GlassPalette.inkOf(brightness),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${reasoning.runes.length} 字'
+                        '${model == null || model.isEmpty ? '' : ' · $model'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11.5, color: faint),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (preview.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                  child: Text(
+                    '对应回复：$preview',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11.5, height: 1.5, color: soft),
+                  ),
+                ),
+              const Divider(height: 1),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+                  child: SelectableText(
+                    reasoning,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.75,
+                      color: soft,
+                    ),
+                  ),
+                ),
+              ),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                child: Text(
+                  '思考内容不会进入上下文，只在这里查看。',
+                  style: TextStyle(fontSize: 11, color: faint),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _onMenuAction(
     String value,
     ChatState state,
@@ -336,6 +435,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         break;
       case 'params':
         await _showGenerationParams();
+        break;
+      case 'reasoning':
+        await _showReasoning(state);
         break;
       case 'clear':
         final ok = await showConfirmDialog(

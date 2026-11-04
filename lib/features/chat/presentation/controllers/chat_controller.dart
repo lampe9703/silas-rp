@@ -442,6 +442,8 @@ class ChatController extends FamilyNotifier<ChatState, String> {
     final cancelToken = CancelToken();
     _cancelToken = cancelToken;
     final buffer = StringBuffer();
+    // 思考过程单独累积：只存下来给「查看思考过程」看，不参与任何提示词
+    final reasoningBuffer = StringBuffer();
     final stopwatch = Stopwatch()..start();
     int lastFlushMs = 0;
     int? ttftMs;
@@ -460,17 +462,27 @@ class ChatController extends FamilyNotifier<ChatState, String> {
           );
 
       await for (final event in stream) {
+        if (event.reasoningDelta != null) {
+          reasoningBuffer.write(event.reasoningDelta);
+        }
         if (event.contentDelta != null) {
           ttftMs ??= stopwatch.elapsedMilliseconds;
           buffer.write(event.contentDelta);
-          // 节流：每 250ms 落盘一次，避免每个 token 一次事务
-          final now = DateTime.now().millisecondsSinceEpoch;
-          if (now - lastFlushMs >= 250) {
-            lastFlushMs = now;
+        }
+        // 节流：每 250ms 落盘一次（正文与思考一起），避免每个 token 一次事务
+        final now = DateTime.now().millisecondsSinceEpoch;
+        if (now - lastFlushMs >= 250) {
+          lastFlushMs = now;
+          if (buffer.isNotEmpty) {
             // 状态块不该出现在气泡里，流式阶段就要剥掉
             final visible = StatusParser.stripForDisplay(buffer.toString());
             _messageDao.updateContent(placeholder.id, visible);
             _patchMessage(placeholder.id, content: visible);
+          }
+          if (reasoningBuffer.isNotEmpty) {
+            final thinking = reasoningBuffer.toString();
+            _messageDao.updateReasoning(placeholder.id, thinking);
+            _patchMessage(placeholder.id, reasoning: thinking);
           }
         }
         if (event.usage != null) usage = event.usage;
@@ -504,11 +516,17 @@ class ChatController extends FamilyNotifier<ChatState, String> {
         placeholder.id,
         status: MessageStatus.done,
         content: text,
+        reasoning: reasoningBuffer.isEmpty ? null : reasoningBuffer.toString(),
         tokenCount: promptTokens + completionTokens,
         finishReason: finishReason,
         latencyMs: elapsed,
       );
-      _patchMessage(placeholder.id, content: text, status: MessageStatus.done);
+      _patchMessage(
+        placeholder.id,
+        content: text,
+        status: MessageStatus.done,
+        reasoning: reasoningBuffer.isEmpty ? null : reasoningBuffer.toString(),
+      );
 
       // 合并模型给出的状态更新
       if (parsed.status != null && parsed.status!.isNotEmpty) {
@@ -542,6 +560,7 @@ class ChatController extends FamilyNotifier<ChatState, String> {
         placeholder.id,
         status: cancelled ? MessageStatus.cancelled : MessageStatus.error,
         content: text,
+        reasoning: reasoningBuffer.isEmpty ? null : reasoningBuffer.toString(),
         tokenCount: promptTokens + completionTokens,
         latencyMs: elapsed,
         errorMessage: cancelled ? null : e.userMessage,
@@ -699,6 +718,7 @@ class ChatController extends FamilyNotifier<ChatState, String> {
   void _patchMessage(
     String id, {
     String? content,
+    String? reasoning,
     MessageStatus? status,
     String? errorMessage,
   }) {
@@ -706,6 +726,7 @@ class ChatController extends FamilyNotifier<ChatState, String> {
       if (m.id != id) return m;
       return m.copyWith(
         content: content ?? m.content,
+        reasoning: reasoning ?? m.reasoning,
         status: status ?? m.status,
         errorMessage: errorMessage ?? m.errorMessage,
         updatedAt: nowMs(),

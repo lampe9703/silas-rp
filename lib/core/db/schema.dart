@@ -4,7 +4,7 @@
 /// 所有时间字段为毫秒时间戳（INTEGER），所有金额为「微单位」（INTEGER）。
 library;
 
-const int kSchemaVersion = 4;
+const int kSchemaVersion = 5;
 
 /// v1 建表语句。按依赖顺序排列（被引用的表在前）。
 const List<String> kSchemaV1 = <String>[
@@ -233,6 +233,14 @@ const List<String> kSchemaV3 = <String>[
 /// v4：简介独立成列（人设正文不再兼任列表简介）
 const List<String> kSchemaV4 = <String>[
   "ALTER TABLE character_cards ADD COLUMN summary TEXT NOT NULL DEFAULT ''",
+];
+
+/// v5：把模型的思考过程（reasoning_content）存下来，供「查看思考过程」使用。
+///
+/// 单独一列而不是塞进 content：思考绝不能回灌上下文，
+/// 分列之后 `contextWindow` 天然只取 content。
+const List<String> kSchemaV5 = <String>[
+  "ALTER TABLE messages ADD COLUMN reasoning TEXT NOT NULL DEFAULT ''",
 ];
 
 /// 全文检索相关对象单独成组：运行时探测 FTS5+trigram 是否可用，不可用则整体降级为 LIKE。

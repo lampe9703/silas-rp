@@ -115,6 +115,7 @@ class ChatMessage {
     required this.seq,
     required this.role,
     this.content = '',
+    this.reasoning = '',
     this.status = MessageStatus.done,
     this.variantGroup,
     this.variantIndex = 0,
@@ -135,6 +136,12 @@ class ChatMessage {
   final int seq;
   final ChatRole role;
   final String content;
+
+  /// 模型的思考过程（reasoning_content）。
+  ///
+  /// 只用于「查看思考过程」，**绝不进入上下文**：喂回模型会污染后续输出。
+  /// 不是所有模型都返回，没有时为空串。
+  final String reasoning;
   final MessageStatus status;
   final String? variantGroup;
   final int variantIndex;
@@ -159,6 +166,7 @@ class ChatMessage {
         seq: (row['seq'] as int?) ?? 0,
         role: ChatRoleX.parse(row['role'] as String?),
         content: (row['content'] as String?) ?? '',
+        reasoning: (row['reasoning'] as String?) ?? '',
         status: MessageStatusX.parse(row['status'] as String?),
         variantGroup: row['variant_group'] as String?,
         variantIndex: (row['variant_index'] as int?) ?? 0,
@@ -197,6 +205,7 @@ class ChatMessage {
 
   ChatMessage copyWith({
     String? content,
+    String? reasoning,
     MessageStatus? status,
     bool? isActiveVariant,
     bool? excludedFromContext,
@@ -214,6 +223,7 @@ class ChatMessage {
         seq: seq,
         role: role,
         content: content ?? this.content,
+      reasoning: reasoning ?? this.reasoning,
         status: status ?? this.status,
         variantGroup: variantGroup,
         variantIndex: variantIndex,

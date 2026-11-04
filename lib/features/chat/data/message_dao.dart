@@ -26,6 +26,7 @@ class MessageDao {
     required String sessionId,
     required ChatRole role,
     required String content,
+    String reasoning = '',
     MessageStatus status = MessageStatus.done,
     int? seq,
     String? variantGroup,
@@ -41,6 +42,7 @@ class MessageDao {
       seq: seq ?? nextSeq(sessionId),
       role: role,
       content: content,
+      reasoning: reasoning,
       status: status,
       variantGroup: variantGroup,
       variantIndex: variantIndex,
@@ -53,10 +55,10 @@ class MessageDao {
     _db.execute(
       '''
 INSERT INTO messages (
-  id, session_id, seq, role, content, status, variant_group, variant_index,
-  is_active_variant, excluded_from_context, token_count, model, api_config_id,
-  created_at, updated_at
-) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  id, session_id, seq, role, content, reasoning, status, variant_group,
+  variant_index, is_active_variant, excluded_from_context, token_count, model,
+  api_config_id, created_at, updated_at
+) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 ''',
       <Object?>[
         message.id,
@@ -64,6 +66,7 @@ INSERT INTO messages (
         message.seq,
         message.role.name,
         message.content,
+        message.reasoning,
         message.status.name,
         message.variantGroup,
         message.variantIndex,
@@ -87,10 +90,19 @@ INSERT INTO messages (
     );
   }
 
+  /// 流式增量写入思考过程（与 content 分开一列，互不覆盖）
+  void updateReasoning(String messageId, String reasoning) {
+    _db.execute(
+      'UPDATE messages SET reasoning = ?, updated_at = ? WHERE id = ?',
+      [reasoning, nowMs(), messageId],
+    );
+  }
+
   void finalize(
     String messageId, {
     required MessageStatus status,
     required String content,
+    String? reasoning,
     int? tokenCount,
     String? finishReason,
     int? latencyMs,
@@ -98,7 +110,8 @@ INSERT INTO messages (
   }) {
     _db.execute(
       'UPDATE messages SET content = ?, status = ?, token_count = ?, '
-      'finish_reason = ?, latency_ms = ?, error_message = ?, updated_at = ? WHERE id = ?',
+      'finish_reason = ?, latency_ms = ?, error_message = ?, '
+      'reasoning = COALESCE(?, reasoning), updated_at = ? WHERE id = ?',
       [
         content,
         status.name,
@@ -106,6 +119,7 @@ INSERT INTO messages (
         finishReason,
         latencyMs,
         errorMessage,
+        reasoning,
         nowMs(),
         messageId,
       ],
