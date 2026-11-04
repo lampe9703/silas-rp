@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 
+import 'fonts.dart';
 import 'glass_theme.dart';
 
-/// 内置的简体中文字族（见 pubspec 的 fonts 段）。
-///
-/// 实际字体为霞鹜文楷（LXGW WenKai）的子集，按 OFL 保留字体名要求
-/// 已改名为「Silas WenKai」，此处的 family 与 pubspec 保持一致。
-///
-/// 注意：`listTileTheme.titleTextStyle`、`appBarTheme.titleTextStyle` 这类
-/// 显式 style 会**整段替换**继承来的 DefaultTextStyle，字体族必须自己带上，
-/// 否则会出现「改了主题字体但某个控件没变」的假象。
-const String kCjkFamily = 'SilasWenKai';
+export 'fonts.dart';
 
+/// 主题里每一处显式 TextStyle 都必须带上字体族。
+///
+/// 原因：`ThemeData(fontFamily:)` 只作用于 textTheme 本身，而
+/// buttonTheme / snackBarTheme / popupMenuTheme / chipTheme 这类
+/// 「子主题里的 textStyle」是**整段替换**的——没写 fontFamily 就等于
+/// 显式声明「用系统默认字体」，中文会掉回 Noto Sans CJK。
+/// 之前导航栏标签、Toast、排序菜单、按钮文字看着还是旧字体，就是这个原因。
 class AppTheme {
   static const Color seed = GlassPalette.sky;
 
@@ -86,10 +86,14 @@ class AppTheme {
       colorScheme: scheme,
       fontFamily: kCjkFamily,
     );
-    final textTheme = base.textTheme.apply(
-      bodyColor: GlassPalette.inkOf(brightness),
-      displayColor: GlassPalette.inkOf(brightness),
-    );
+    final textTheme = base.textTheme
+        .apply(
+          bodyColor: GlassPalette.inkOf(brightness),
+          displayColor: GlassPalette.inkOf(brightness),
+        )
+        // 整份 TextTheme 再压一遍字体族：ThemeData(fontFamily:) 在某些
+        // Typography 组合下会漏掉个别档位（display*/headline*），这里兜底。
+        .apply(fontFamily: kCjkFamily);
 
     return base.copyWith(
       scaffoldBackgroundColor: Colors.transparent,
@@ -134,6 +138,7 @@ class AppTheme {
             : Colors.white.withOpacity(0.62),
         hintStyle: TextStyle(
           fontSize: 14,
+          fontFamily: kCjkFamily,
           color: GlassPalette.inkFaintOf(brightness),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -171,6 +176,7 @@ class AppTheme {
             : Colors.white.withOpacity(0.62),
         labelStyle: TextStyle(
           fontSize: 12,
+          fontFamily: kCjkFamily,
           color: GlassPalette.inkSoftOf(brightness),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
@@ -181,7 +187,11 @@ class AppTheme {
         backgroundColor: isDark
             ? const Color(0xFF22303F).withOpacity(0.96)
             : const Color(0xFF40566F).withOpacity(0.94),
-        contentTextStyle: const TextStyle(fontSize: 13, color: Colors.white),
+        contentTextStyle: const TextStyle(
+          fontSize: 13,
+          fontFamily: kCjkFamily,
+          color: Colors.white,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         insetPadding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       ),
@@ -265,13 +275,17 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
-          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(
+            fontSize: 14,
+            fontFamily: kCjkFamily,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: isDark ? accentSoft : accentDeep,
-          textStyle: const TextStyle(fontSize: 13.5),
+          textStyle: const TextStyle(fontSize: 13.5, fontFamily: kCjkFamily),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -279,6 +293,7 @@ class AppTheme {
           foregroundColor: isDark ? accentSoft : accentDeep,
           side: BorderSide(color: GlassPalette.hairline(brightness)),
           minimumSize: const Size(0, 46),
+          textStyle: const TextStyle(fontSize: 14, fontFamily: kCjkFamily),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -295,8 +310,24 @@ class AppTheme {
         ),
         textStyle: TextStyle(
           fontSize: 13.5,
+          fontFamily: kCjkFamily,
           color: GlassPalette.inkOf(brightness),
         ),
+      ),
+      tooltipTheme: TooltipThemeData(
+        textStyle: TextStyle(
+          fontSize: 12,
+          height: 1.35,
+          fontFamily: kCjkFamily,
+          color: isDark ? GlassPalette.inkOf(Brightness.dark) : Colors.white,
+        ),
+        decoration: BoxDecoration(
+          color: isDark
+              ? const Color(0xFF22303F).withOpacity(0.96)
+              : const Color(0xFF40566F).withOpacity(0.94),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       ),
     );
   }

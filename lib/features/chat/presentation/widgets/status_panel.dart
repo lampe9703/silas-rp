@@ -38,11 +38,9 @@ class _StatusPanelState extends State<StatusPanel> {
 
   @override
   Widget build(BuildContext context) {
-    // 状态为空但有模板时也显示：作者常为省 token 只写模板、不写初始状态，
-    // 这时用模板骨架先占位，避免「开了状态栏却看不见」。
-    if (widget.status.isEmpty && widget.template.trim().isEmpty) {
-      return const SizedBox.shrink();
-    }
+    // 不再在「状态为空且没有模板」时直接返回空盒子：
+    // 那样面板会凭空消失，用户会以为状态栏坏了/关了。这里保留一行胶囊，
+    // 收起态显示「未设定」，展开态给一句说明。
     final brightness = Theme.of(context).brightness;
 
     return Padding(
@@ -285,6 +283,17 @@ class _StatusPanelState extends State<StatusPanel> {
     bool isDark,
   ) {
     final template = widget.template.trim();
+    if (template.isEmpty && widget.status.isEmpty) {
+      return Text(
+        '还没有状态数据。角色回复时会自动填充；'
+        '也可以在角色卡里写好「初始状态」或「状态栏模板」。',
+        style: TextStyle(
+          fontSize: 12,
+          height: 1.6,
+          color: GlassPalette.inkSoftOf(brightness),
+        ),
+      );
+    }
     if (template.isNotEmpty) {
       // 折叠态已经露了第一条，展开时从第二条开始，避免重复。
       var rendered = StatusParser.renderTemplate(

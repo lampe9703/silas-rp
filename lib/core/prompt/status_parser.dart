@@ -58,6 +58,20 @@ class StatusParser {
     }
 
     var visible = raw.replaceAll(_anyFence, '');
+
+    // 未闭合的围栏：回复被 max_tokens 截断时最常见。
+    // 此时块里的「键：值」往往已经写完了，直接整段丢掉就会表现为
+    // 「状态栏这一轮不更新」——所以先把块内文本解析掉，再把块从正文里切走。
+    final open = _openBlock(visible);
+    if (open != null) {
+      final parsed = _decodeStatusBody(open.body);
+      if (parsed != null && parsed.isNotEmpty) {
+        updates.addAll(parsed);
+        found = true;
+      }
+      visible = visible.substring(0, open.start);
+    }
+
     visible = _truncateOpenBlock(visible);
 
     // 兜底：模型忘了包围栏，但正文末尾是一串已知键的 `键：值`
@@ -109,9 +123,15 @@ class StatusParser {
 
   /// 围栏内容：JSON 优先，失败退回逐行
   static Map<String, dynamic>? _decodeStatusBody(String body) {
-    final json = _tryDecode(body);
+    final trimmed = body.trim();
+    // 看着像 JSON 就只按 JSON 解。截断的 JSON 交给逐行解析会解出
+    // `{"好感度"` 这种垃圾键，反而把状态栏污染掉。
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      return _tryDecode(trimmed);
+    }
+    final json = _tryDecode(trimmed);
     if (json != null) return json;
-    return _parseLines(body);
+    return _parseLines(trimmed);
   }
 
   /// 正文末尾若干行「已知键：值」→ 状态更新，并把这些行从正文里剥掉
@@ -159,10 +179,32 @@ class StatusParser {
       final match = line.firstMatch(rawLine);
       if (match == null) continue;
       final key = match.group(1)!.trim().replaceAll(RegExp(r'^[-*·]\s*'), '');
-      if (key.isEmpty) continue;
+      // 键里混进 JSON 符号说明这行其实是截断的 JSON，不是「键：值」
+      if (key.isEmpty || key.contains(RegExp(r'["{}\[\]]'))) continue;
       result[key] = _normalizeValue(match.group(2)!);
     }
     return result.isEmpty ? null : result;
+  }
+
+  /// 找出文末**未闭合**的状态围栏：返回 (起始下标, 围栏内文本)。
+  ///
+  /// 「未闭合」= 围栏标记之后再没有 ```。多半是回复被 max_tokens 截断，
+  /// 或者模型漏写了收尾的三个反引号。
+  static ({int start, String body})? _openBlock(String text) {
+    final lower = text.toLowerCase();
+    var idx = lower.lastIndexOf(fence);
+    var tagLen = fence.length;
+    final tplIdx = text.lastIndexOf(templateFence);
+    if (tplIdx > idx) {
+      idx = tplIdx;
+      tagLen = templateFence.length;
+    }
+    if (idx < 0) return null;
+    final rest = text.substring(idx + tagLen);
+    if (rest.contains('```')) return null; // 已闭合，上面 replaceAll 会处理
+    // 围栏那一行可能还带着别的标签（```状态栏 / ```status-bar），跳到换行之后
+    final nl = rest.indexOf('\n');
+    return (start: idx, body: nl >= 0 ? rest.substring(nl + 1) : '');
   }
 
   /// 截断未闭合的状态块
@@ -305,6 +347,13 @@ class StatusParser {
         out.add('$indent$key：—');
       }
     }
-    return out.join('\n').trim();
+    // 兼容 `{{键}}` 占位符写法：作者既可能写「心情：<情绪>」的键值行，
+    // 也可能写「好感度 {{好感度}}」的行内占位。后者按值替换，
+    // 未定义/非状态键（如 {{char}}、{{user}}）原样保留，方便作者发现拼错。
+    var text = out.join('\n');
+    for (final entry in status.entries) {
+      text = text.replaceAll('{{${entry.key}}}', displayValue(entry.value));
+    }
+    return text.trim();
   }
 }

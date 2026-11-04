@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import 'fonts.dart';
 import 'jelly.dart';
 
 /// 毛玻璃设计系统。
@@ -464,9 +465,12 @@ class _NavCell extends StatelessWidget {
             AnimatedDefaultTextStyle(
               duration: GlassNavBar._duration,
               curve: GlassNavBar._curve,
+              // AnimatedDefaultTextStyle 会整段替换上层 DefaultTextStyle，
+              // 不显式带字体族的话，导航标签会掉回系统字体
               style: TextStyle(
                 fontSize: 10.5,
                 height: 1.1,
+                fontFamily: kCjkFamily,
                 fontWeight: FontWeight.w500,
                 color: selected ? activeColor : idleColor,
               ),

@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../theme/fonts.dart';
+
 /// ── 轻量 Markdown 渲染器（零依赖） ──
 ///
 /// 聊天气泡用，语法对齐 SillyTavern 渲染集：
@@ -106,7 +108,9 @@ List<Widget> buildMarkdownBlocks(
       blocks.add(_CodeBlock(
         code: code.toString(),
         style: base.copyWith(
+          // monospace 没有中文字形，必须挂回退链，否则中文会掉到系统字体
           fontFamily: 'monospace',
+          fontFamilyFallback: kCjkFallback,
           fontSize: base.fontSize! * 0.9,
           // 代码块内容统一翠绿
           color: hl.code,
@@ -272,6 +276,7 @@ List<InlineSpan> parseInline(
         text: codeParts[c],
         style: base.copyWith(
           fontFamily: 'monospace',
+          fontFamilyFallback: kCjkFallback,
           fontSize: (base.fontSize ?? 14) * 0.92,
           // 行内代码同样翠绿，和围栏代码块保持一致
           color: hl.code,

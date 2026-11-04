@@ -155,14 +155,20 @@ class CharacterRepository {
     return ImportOutcome(imported: list.length);
   }
 
+  /// 导出前一律按 id 回库重读一次。
+  ///
+  /// 调用方手里的 card 可能来自列表快照（长按菜单持有的是构建时的对象），
+  /// 卡片刚在编辑页改完、列表还没重建时，直接拿快照导出会得到改动前的内容。
   Future<String> exportJson(CharacterCard card) async {
-    final file = await _exporter.exportJson(card);
+    final fresh = _dao.byId(card.id) ?? card;
+    final file = await _exporter.exportJson(fresh);
     return file.path;
   }
 
   Future<String?> exportPng(CharacterCard card) async {
-    final bytes = await _avatars.readBytes(card.avatarPath);
-    final file = await _exporter.exportPng(card, bytes);
+    final fresh = _dao.byId(card.id) ?? card;
+    final bytes = await _avatars.readBytes(fresh.avatarPath);
+    final file = await _exporter.exportPng(fresh, bytes);
     return file?.path;
   }
 

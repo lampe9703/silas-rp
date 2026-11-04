@@ -11,6 +11,7 @@ import '../../../core/prompt/prompt_builder.dart';
 import '../../../core/prompt/status_parser.dart';
 import '../../../core/prompt/token_estimator.dart';
 import '../../../core/prompt/world_book_engine.dart';
+import '../../../core/theme/fonts.dart';
 import '../../../core/theme/glass_theme.dart';
 import '../../../core/utils/ids.dart';
 import '../../../core/utils/time_utils.dart';
@@ -70,6 +71,14 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
   final List<_StatusEntry> _statusEntries = <_StatusEntry>[];
   final List<_WorldEntryDraft> _worldEntries = <_WorldEntryDraft>[];
   bool _advancedMode = false;
+
+  /// 用户是否真的动过基础模式的引导字段。
+  ///
+  /// 只有它为 true 时，保存才会用「性别：…/性格：…」这套字段重排人设；
+  /// 否则一律以 [_description] 里的原文为准。没有这个开关的话，
+  /// 打开一张带段落、空行的卡（默认落在基础模式）随手一存，
+  /// 人设就会被压成单行 —— 作者写的换行全部消失。
+  bool _guidedDirty = false;
 
   /// 高级模式下「角色人设」是否收起（方便直接滑到世界书）
   /// 各分区展开状态：id 在集合里表示已收起。默认全展开。
@@ -175,6 +184,10 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
       card.personality,
       postHistory: card.postHistoryInstructions,
     );
+    // 带段落 / 空行 / 【】小节的卡直接进高级模式：
+    // 基础模式那几个字段装不下排版，用户一编辑就会把换行压掉。
+    _advancedMode = _needsAdvancedPersona(_description.text);
+    _guidedDirty = false;
     _personality.text = '';
     _scenario.text = '';
     _systemPrompt.text = card.systemPrompt;
@@ -256,6 +269,7 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
       _statusEnabled = (map['statusEnabled'] as bool?) ?? false;
       _statusFormat = (map['statusFormat'] as String?) ?? statusFormatTemplate;
       _advancedMode = (map['advancedMode'] as bool?) ?? false;
+      _guidedDirty = (map['guidedDirty'] as bool?) ?? false;
       _statusRules.text = (map['statusRules'] as String?) ?? '';
       _statusTemplate.text = (map['statusTemplate'] as String?) ?? '';
       _statusText.text = (map['statusText'] as String?) ?? '';
@@ -328,6 +342,7 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
       'statusEnabled': _statusEnabled,
       'statusFormat': _statusFormat,
       'advancedMode': _advancedMode,
+      'guidedDirty': _guidedDirty,
       'statusRules': _statusRules.text,
       'statusTemplate': _statusTemplate.text,
       'statusText': _statusText.text,
@@ -359,9 +374,14 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
 
   CharacterCard _buildCard() {
     final now = nowMs();
+    // 基础模式只在「用户真的改过引导字段」时用字段重排人设，否则以原文为准。
+    // 这样换行、空行、缩进这些作者用来分段的排版不会被保存动作吃掉。
+    final rawDescription = _description.text.trim();
     final description = _advancedMode
-        ? _description.text.trim()
-        : _descriptionFromGuided();
+        ? rawDescription
+        : (_guidedDirty || rawDescription.isEmpty
+            ? _descriptionFromGuided()
+            : rawDescription);
     return CharacterCard(
       id: _editingId ?? newId(),
       name: _cardName.trim().isEmpty ? '未命名角色' : _cardName.trim(),
@@ -517,7 +537,7 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
                   ? '未填写'
                   : '${_mesExample.text.runes.length} 字',
               child: _field('示例对话 (mes_example)', _mesExample,
-                  hint: '<START>\n{{char}}: …\n{{user}}: …', maxLines: 7),
+                  hint: '<START>\n{{char}}: …\n{{user}}: …', minLines: 7),
             ),
             const SizedBox(height: 16),
             _section(
@@ -528,7 +548,7 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   _field('主开场白 (first_mes)', _firstMes,
-                      hint: '对话开始时角色的第一句话', maxLines: 5),
+                      hint: '对话开始时角色的第一句话', minLines: 5),
                   _buildGreetingsEditor(),
                 ],
               ),
@@ -924,8 +944,10 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
             if (textMode)
               TextField(
                 controller: _statusText,
-                maxLines: 8,
                 minLines: 4,
+                maxLines: null,
+                scrollPhysics: const NeverScrollableScrollPhysics(),
+                keyboardType: TextInputType.multiline,
                 onChanged: (_) {
                   setState(() {});
                   _scheduleDraftSave();
@@ -1012,8 +1034,10 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
             const SizedBox(height: 6),
             TextField(
               controller: _statusTemplate,
-              maxLines: 8,
               minLines: 3,
+              maxLines: null,
+              scrollPhysics: const NeverScrollableScrollPhysics(),
+              keyboardType: TextInputType.multiline,
               onChanged: (_) => _scheduleDraftSave(),
               style: const TextStyle(fontSize: 13, height: 1.5),
               decoration: const InputDecoration(
@@ -1041,8 +1065,10 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
               _statusLabel('更新规则'),
               TextField(
                 controller: _statusRules,
-                maxLines: 4,
                 minLines: 3,
+                maxLines: null,
+                scrollPhysics: const NeverScrollableScrollPhysics(),
+                keyboardType: TextInputType.multiline,
                 onChanged: (_) => _scheduleDraftSave(),
                 style: const TextStyle(fontSize: 13, height: 1.5),
                 decoration: const InputDecoration(
@@ -1197,15 +1223,19 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
           children: <Widget>[
             _guidedRow('性别', _gGender, '女', scheme),
             _guidedRow('年龄', _gAge, '19', scheme),
-            _guidedRow('性格', _gCharacter, '活泼、爱撒娇、占有欲强', scheme),
-            _guidedRow('外貌', _gLooks, '身高167cm，淡粉色长发，常穿校服', scheme),
-            _guidedRow('癖好', _gKinks, '喜欢被摸头发、怕痒', scheme),
+            _guidedRow('性格', _gCharacter, '活泼、爱撒娇、占有欲强', scheme,
+                multiline: true),
+            _guidedRow('外貌', _gLooks, '身高167cm，淡粉色长发，常穿校服', scheme,
+                multiline: true),
+            _guidedRow('癖好', _gKinks, '喜欢被摸头发、怕痒', scheme,
+                multiline: true),
             _guidedRow(
               '补充',
               _gExtra,
               '其他想补充的设定，写多少都行',
               scheme,
-              maxLines: 4,
+              minLines: 3,
+              multiline: true,
             ),
           ],
         ),
@@ -1218,7 +1248,8 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
     TextEditingController controller,
     String hint,
     ColorScheme scheme, {
-    int maxLines = 1,
+    int minLines = 1,
+    bool multiline = false,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -1245,9 +1276,16 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
           Expanded(
             child: TextField(
               controller: controller,
-              maxLines: maxLines,
-              minLines: maxLines > 1 ? 2 : 1,
-              onChanged: (_) => _scheduleDraftSave(),
+              minLines: minLines,
+              // 多行档随内容长高，Enter 直接换行；单行档 Enter 只会收起键盘
+              maxLines: multiline ? null : 1,
+              scrollPhysics:
+                  multiline ? const NeverScrollableScrollPhysics() : null,
+              keyboardType: multiline ? TextInputType.multiline : null,
+              onChanged: (_) {
+                _guidedDirty = true;
+                _scheduleDraftSave();
+              },
               style: const TextStyle(fontSize: 14, height: 1.5),
               decoration: InputDecoration(
                 hintText: hint,
@@ -1318,6 +1356,23 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
         ),
       ),
     ];
+  }
+
+  /// 人设文本是否「基础模式的字段装不下」。
+  ///
+  /// 判据：出现空行（段落分隔）、【】小节标题，或有两行以上不是 `键：值` 形式。
+  /// 这类文本走基础模式保存会被压成一串单行，所以载入时直接进高级模式。
+  static bool _needsAdvancedPersona(String text) {
+    if (text.trim().isEmpty) return false;
+    if (RegExp(r'\n[ \t]*\n').hasMatch(text)) return true;
+    var stray = 0;
+    for (final raw in text.split('\n')) {
+      final line = raw.trim();
+      if (line.isEmpty) continue;
+      if (line.startsWith('【')) return true;
+      if (!RegExp(r'^[^：:]{1,8}[：:]').hasMatch(line)) stray++;
+    }
+    return stray >= 2;
   }
 
   /// 把导入卡里分散的人设段落并进同一段文本
@@ -1438,18 +1493,30 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
         children: <Widget>[
           pill('基础', !_advancedMode, () {
             if (_advancedMode) {
+              final losesLayout = _needsAdvancedPersona(_description.text);
               setState(() {
                 _advancedMode = false;
+                // 只把原文投影到引导字段，不回写 description；
+                // 用户没动字段的话，保存仍然用原文，换行不会丢。
                 _fillGuidedFromDescription(_description.text);
+                _guidedDirty = false;
               });
               _scheduleDraftSave();
+              if (losesLayout) {
+                showToast(
+                  context,
+                  '基础模式会把段落压成「键：值」单行；想保留换行请切回高级模式',
+                );
+              }
             }
           }),
           pill('高级', _advancedMode, () {
             if (!_advancedMode) {
               setState(() {
                 _advancedMode = true;
-                _description.text = _descriptionFromGuided();
+                // 没改过引导字段就保留原排版，不拿字段重排覆盖它
+                if (_guidedDirty) _description.text = _descriptionFromGuided();
+                _guidedDirty = false;
                 // 高级档状态栏只走纯文本
                 _statusFormat = statusFormatTemplate;
                 _statusText.text = _statusTextFromEntries();
@@ -1522,6 +1589,7 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
   Widget _buildWorldEntryCard(int index, Brightness brightness) {
     final entry = _worldEntries[index];
     final isConstant = entry.kind == WorldEntryKind.constant;
+    final isDark = brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
     final faint = GlassPalette.inkFaintOf(brightness);
 
@@ -1529,11 +1597,17 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
       margin: const EdgeInsets.only(top: 6),
       padding: const EdgeInsets.fromLTRB(2, 2, 2, 6),
       decoration: BoxDecoration(
-        color: brightness == Brightness.dark
-            ? Colors.white.withOpacity(0.04)
+        // 暗色：不画线，靠底色分三层（页面 → 条目卡 → 内部输入框），
+        // 每一层亮一档，圆角块本身就浮起来了。
+        // 注意第一版只给了 0.035，几乎和背景同色，圆角矩形看起来"消失"了，
+        // 所以条目卡这一层要够亮（0.075），输入框再亮一档（0.13）。
+        color: isDark
+            ? Colors.white.withOpacity(0.075)
             : Colors.white.withOpacity(0.55),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: GlassPalette.hairline(brightness)),
+        border: isDark
+            ? null
+            : Border.all(color: GlassPalette.hairline(brightness)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1644,9 +1718,9 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
                       controller: entry.keywordsController,
                       style: const TextStyle(fontSize: 12.5),
                       onChanged: (_) => _scheduleDraftSave(),
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        hintText: '关键词，半角逗号分隔，如：疲劳, 伤害',
+                      decoration: _worldFieldDecoration(
+                        brightness,
+                        hint: '关键词，半角逗号分隔，如：疲劳, 伤害',
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -1655,29 +1729,19 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
                     children: <Widget>[
                       SizedBox(
                         width: 82,
-                        child: TextField(
+                        child: _worldNumberField(
+                          brightness,
+                          label: '顺序',
                           controller: entry.orderController,
-                          keyboardType: TextInputType.number,
-                          style: const TextStyle(fontSize: 12.5),
-                          onChanged: (_) => _scheduleDraftSave(),
-                          decoration: const InputDecoration(
-                            isDense: true,
-                            labelText: '顺序',
-                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       SizedBox(
                         width: 82,
-                        child: TextField(
+                        child: _worldNumberField(
+                          brightness,
+                          label: '概率',
                           controller: entry.probabilityController,
-                          keyboardType: TextInputType.number,
-                          style: const TextStyle(fontSize: 12.5),
-                          onChanged: (_) => _scheduleDraftSave(),
-                          decoration: const InputDecoration(
-                            isDense: true,
-                            labelText: '概率',
-                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -1692,16 +1756,18 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
                   const SizedBox(height: 6),
                   TextField(
                     controller: entry.contentController,
-                    maxLines: 10,
                     minLines: 4,
+                    maxLines: null,
+                    scrollPhysics: const NeverScrollableScrollPhysics(),
+                    keyboardType: TextInputType.multiline,
                     style: const TextStyle(fontSize: 13, height: 1.6),
                     onChanged: (_) {
                       setState(() {});
                       _scheduleDraftSave();
                     },
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      hintText: '条目内容：命中后会注入角色设定',
+                    decoration: _worldFieldDecoration(
+                      brightness,
+                      hint: '条目内容：命中后会注入角色设定',
                     ),
                   ),
                 ],
@@ -1713,6 +1779,111 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
     );
   }
 
+
+  /// 世界书条目里的「顺序 / 概率」小输入框。
+  ///
+  /// 尺寸与 3123（用 labelText 的原版）严格对齐，只做平移，不缩放：
+  /// * 液泡框 82×47 —— 与原来 `isDense + labelText` 的 TextField 实测同高；
+  /// * 标签 12px —— 与 M3 浮动标签同字号，放在液泡内部左上角（原来浮在
+  ///   描边线上，无边框时就"溢"出去了）；
+  /// * 数值 12.5px —— 与原输入框同字号，挪到液泡右下（中后部）；
+  /// * 输入框本身不显形：无边框、无填充、无内边距（主题默认 `filled: true`，
+  ///   不显式关掉就会在液泡里多出一块小底——3124 的问题）。
+  Widget _worldNumberField(
+    Brightness brightness, {
+    required String label,
+    required TextEditingController controller,
+  }) {
+    final isDark = brightness == Brightness.dark;
+    return Container(
+      height: 47,
+      padding: const EdgeInsets.fromLTRB(12, 5, 12, 7),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withOpacity(0.13)
+            : Colors.white.withOpacity(0.72),
+        borderRadius: BorderRadius.circular(12),
+        border: isDark
+            ? null
+            : Border.all(color: GlassPalette.hairline(brightness)),
+      ),
+      child: Stack(
+        children: <Widget>[
+          Align(
+            alignment: Alignment.topLeft,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.2,
+                color: GlassPalette.inkSoftOf(brightness),
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomRight,
+            child: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontSize: 12.5, height: 1.2),
+              onChanged: (_) => _scheduleDraftSave(),
+              decoration: const InputDecoration(
+                // 与「条目名」输入框同一套写法：**三种状态的边框全显式置空**。
+                // 只写 border 是不够的——enabledBorder / focusedBorder 仍会从
+                // 主题的 inputDecorationTheme 继承（细边框 + 聚焦时主题色高亮），
+                // 于是静止时有框、点进去还会亮一个高亮框。
+                isCollapsed: true,
+                filled: false,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                hintText: '100',
+                hintStyle: TextStyle(fontSize: 12.5, height: 1.2),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 世界书条目内部的输入框样式。
+  ///
+  /// 暗色下走「无边框」：不画线，只用底色把输入框从条目卡里浮出来
+  /// （条目卡 white@0.075 → 输入框 white@0.13，一档色差就是液泡感）。
+  ///
+  /// 注意别用 `InputBorder.none`：填充区域的形状是由 border 的
+  /// `getOuterPath` 决定的，`InputBorder.none` 给的是**直角矩形**，
+  /// 圆角会跟着一起消失。这里用「零宽度 + 透明描边」的圆角边框：
+  /// 路径仍是圆角（填充跟着圆），但一根线都不画。
+  InputDecoration _worldFieldDecoration(
+    Brightness brightness, {
+    String? hint,
+  }) {
+    final base = InputDecoration(isDense: true, hintText: hint);
+    if (brightness != Brightness.dark) return base;
+    const shape = OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(12)),
+      borderSide: BorderSide.none,
+    );
+    return base.copyWith(
+      filled: true,
+      fillColor: Colors.white.withOpacity(0.13),
+      border: shape,
+      enabledBorder: shape,
+      focusedBorder: shape,
+      disabledBorder: shape,
+      errorBorder: shape,
+      focusedErrorBorder: shape,
+    );
+  }
 
   /// 拖动排序：只调整编辑页的显示顺序，注入时仍按条目「顺序」字段
   void _reorderWorldEntries(int oldIndex, int newIndex) {
@@ -1737,11 +1908,15 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
     _scheduleDraftSave();
   }
 
+  /// 带标签的多行输入框。
+  ///
+  /// 高度随内容增长（maxLines: null），并关掉内部滚动：
+  /// 否则长文本会在框里自己滚，外层 ListView 反而滑不动这块区域。
   Widget _field(
     String label,
     TextEditingController? controller, {
     String? hint,
-    int maxLines = 3,
+    int minLines = 3,
   }) {
     if (controller == null) return const SizedBox.shrink();
     return Padding(
@@ -1758,8 +1933,10 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
           ),
           TextField(
             controller: controller,
-            maxLines: maxLines,
-            minLines: maxLines > 3 ? 3 : maxLines,
+            minLines: minLines,
+            maxLines: null,
+            scrollPhysics: const NeverScrollableScrollPhysics(),
+            keyboardType: TextInputType.multiline,
             onChanged: (_) => _scheduleDraftSave(),
             style: const TextStyle(fontSize: 14, height: 1.5),
             decoration: InputDecoration(hintText: hint),
@@ -1841,8 +2018,10 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
                 Expanded(
                   child: TextField(
                     controller: _greetings[i],
-                    maxLines: 4,
-                    minLines: 2,
+                    minLines: 3,
+                    maxLines: null,
+                    scrollPhysics: const NeverScrollableScrollPhysics(),
+                    keyboardType: TextInputType.multiline,
                     onChanged: (_) => _scheduleDraftSave(),
                     style: const TextStyle(fontSize: 14, height: 1.5),
                     decoration: InputDecoration(
@@ -1923,7 +2102,10 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
             child: SelectableText(
               preview,
               style: const TextStyle(
+                // 提示词预览用等宽对齐缩进，但 monospace 没有中文字形，
+                // 挂上回退链，中文才不会被系统字体接管
                 fontFamily: 'monospace',
+                fontFamilyFallback: kCjkFallback,
                 fontSize: 12,
                 height: 1.6,
               ),
@@ -1985,6 +2167,7 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
       _pendingAvatar = null;
       _rawJson = null;
       _source = 'manual';
+      _guidedDirty = false;
       _dirty = false;
       _draftRestored = false;
     });

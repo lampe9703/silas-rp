@@ -1,7 +1,10 @@
 """把霞鹜文楷 LXGW WenKai Regular 子集化，控制内置体积。
 
-与 subset_font.py 保持同一套码位策略（GB2312 + 常用符号区间），
-保证界面里出现的中文字形覆盖一致。
+码位策略：CJK 基本区全量（U+4E00–U+9FFF，20992 字）+ 常用符号区间。
+
+历史：v1.0.0 之前只取 GB2312（7756 字，3.4MB），生僻字与人名用字会掉到
+系统字体上，界面上看起来像「字体没换全」。现在放宽到整个基本区（12.2MB），
+代价是安装包变大，换来的是正文里几乎不会再出现混排字体。
 """
 import os
 
@@ -20,31 +23,26 @@ NEW_PS = 'SilasWenKai-Regular'
 NEW_VERSION = 'Version 1.530 (subset of LXGW WenKai)'
 
 
-def gb2312_chars():
-    out = set()
-    for hi in range(0xB0, 0xF8):
-        for lo in range(0xA1, 0xFF):
-            try:
-                out.add(bytes([hi, lo]).decode('gb2312'))
-            except UnicodeDecodeError:
-                pass
-    return out
+def cjk_chars():
+    """CJK 基本区全部码位（含未分配位置，subsetter 会自动跳过缺失字形）。"""
+    return set(range(0x4E00, 0xA000))
 
 
 def main():
-    chars = gb2312_chars()
-    print('GB2312 汉字/符号:', len(chars))
+    chars = cjk_chars()
+    print('CJK 基本区码位:', len(chars))
 
     ranges = [
         (0x0020, 0x007E), (0x00A0, 0x00FF), (0x2000, 0x206F),
         (0x20A0, 0x20BF), (0x2190, 0x21FF), (0x2200, 0x22FF),
-        (0x2500, 0x257F), (0x25A0, 0x25FF), (0x2600, 0x26FF),
-        (0x3000, 0x303F), (0xFE30, 0xFE4F), (0xFF00, 0xFFEF),
+        (0x2460, 0x24FF), (0x2500, 0x257F), (0x25A0, 0x25FF),
+        (0x2600, 0x26FF), (0x3000, 0x303F), (0xFE30, 0xFE4F),
+        (0xFF00, 0xFFEF),
     ]
     unicodes = set()
     for lo, hi in ranges:
         unicodes.update(range(lo, hi + 1))
-    unicodes.update(ord(c) for c in chars)
+    unicodes.update(chars)
     for c in '·—…“”‘’《》〈〉「」『』【】％℃±×÷≈≤≥√∞':
         unicodes.add(ord(c))
 

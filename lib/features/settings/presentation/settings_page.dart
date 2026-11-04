@@ -48,7 +48,8 @@ class SettingsPage extends ConsumerWidget {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('支持作者'),
+        // 不再放标题：弹窗顶部直接是「: )」符号，省掉一行大字更轻
+        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,7 +76,7 @@ class SettingsPage extends ConsumerWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              '愿意的话，可以在爱发电请我喝杯咖啡，或者在 GitHub 上点一颗星。',
+              '愿意的话，可以在爱发电请我喝杯咖啡，或者在 GitHub 上点一颗 star。',
               style: TextStyle(
                 fontSize: 12.5,
                 height: 1.7,
@@ -233,17 +234,6 @@ class SettingsPage extends ConsumerWidget {
                     .read(appSettingsProvider.notifier)
                     .setMaxReplyLength(v.round()),
               ),
-              const Divider(height: 1, indent: 16, endIndent: 16),
-              SwitchListTile(
-                title: const Text('流式输出', style: TextStyle(fontSize: 14)),
-                subtitle: const Text(
-                  '关闭后一次性返回完整回复',
-                  style: TextStyle(fontSize: 11.5),
-                ),
-                value: settings.streamEnabled,
-                onChanged: (v) =>
-                    ref.read(appSettingsProvider.notifier).setStreamEnabled(v),
-              ),
             ],
           ),
           const SizedBox(height: 18),
@@ -381,7 +371,7 @@ class SettingsPage extends ConsumerWidget {
 /// 提示词设置：系统提示词（SFW）+ 成人向开关（NSFW）合在一张卡里。
 ///
 /// 两者本质都是「往请求里注入提示词」，拆成两张卡会让设置页显得零碎。
-/// 系统提示词区可点击收起，默认展开。
+/// 系统提示词区可点击展开，默认收起。
 class _PromptSettingsCard extends ConsumerStatefulWidget {
   const _PromptSettingsCard({required this.nsfwUnlocked});
 
@@ -395,7 +385,10 @@ class _PromptSettingsCard extends ConsumerStatefulWidget {
 
 class _PromptSettingsCardState extends ConsumerState<_PromptSettingsCard> {
   late final TextEditingController _controller;
-  bool _expanded = true;
+
+  /// 系统提示词编辑区默认收起：整段提示词很长，展开会占满一屏，
+  /// 设置页首屏留给更常用的项。点标题栏展开。
+  bool _expanded = false;
   bool _dirty = false;
 
   @override

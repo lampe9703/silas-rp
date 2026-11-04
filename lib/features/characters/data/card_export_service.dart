@@ -35,10 +35,18 @@ class CardExportService {
   }
 
   /// 把卡片数据嵌入 PNG（若没有头像则生成一张纯色占位图不可行，直接抛错由调用方降级为 JSON）
+  ///
+  /// 头像字节常常来自导入的那张 PNG 卡，里面已经带着旧的 chara / ccv3 块；
+  /// 写入前必须把它们剔掉，否则读取方取到的是第一个块，也就是导入时的原始卡。
   Future<File?> exportPng(CharacterCard card, Uint8List? avatarBytes) async {
     if (avatarBytes == null || !PngCodec.isPng(avatarBytes)) return null;
     final payload = base64.encode(utf8.encode(jsonEncode(card.toTavernJson())));
-    final embedded = PngCodec.embedText(avatarBytes, 'chara', payload);
+    final embedded = PngCodec.embedText(
+      avatarBytes,
+      'chara',
+      payload,
+      replaceKeywords: const <String>{'chara', 'ccv3'},
+    );
     final dir = await _exportDir();
     final file = File(p.join(dir.path, '${_safeName(card.name)}.png'));
     await file.writeAsBytes(embedded);

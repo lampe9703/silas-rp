@@ -98,13 +98,31 @@ class PngCodec {
   ///
   /// tEXt 按规范只允许 Latin-1：能编成 Latin-1 就用 tEXt（SillyTavern 默认读取），
   /// 否则降级为 UTF-8 的 iTXt，避免中文直接抛异常。
-  static Uint8List embedText(Uint8List png, String keyword, String text) {
+  ///
+  /// [replaceKeywords] 里的旧文本块会被**先剔除**再写入。
+  /// 这一步是必须的：头像图片往往就是从别的角色卡 PNG 里扒出来的，
+  /// 里面本来就带着一份旧的 chara/ccv3 数据。读取方（SillyTavern 等）取的是
+  /// **第一个**命中的块，只追加不剔除的话，导出的永远是导入时那份原始卡。
+  static Uint8List embedText(
+    Uint8List png,
+    String keyword,
+    String text, {
+    Set<String>? replaceKeywords,
+  }) {
     final payload = _textChunkData(keyword, text);
+    final drop = <String>{
+      for (final k in (replaceKeywords ?? <String>{keyword})) k.toLowerCase(),
+    };
     final chunks = readChunks(png);
     final out = BytesBuilder(copy: false)..add(_signature);
     var inserted = false;
 
     for (final chunk in chunks) {
+      if (drop.isNotEmpty &&
+          _isTextChunk(chunk.type) &&
+          drop.contains((_keywordOf(chunk) ?? '').toLowerCase())) {
+        continue;
+      }
       if (chunk.type == 'IEND' && !inserted) {
         out.add(_buildChunk(payload.$1, payload.$2));
         inserted = true;
@@ -115,6 +133,17 @@ class PngCodec {
       out.add(_buildChunk(payload.$1, payload.$2));
     }
     return out.toBytes();
+  }
+
+  static bool _isTextChunk(String type) =>
+      type == 'tEXt' || type == 'zTXt' || type == 'iTXt';
+
+  /// 取文本块的 keyword（NUL 之前那段，按 Latin-1 解）
+  static String? _keywordOf(PngChunk chunk) {
+    if (!_isTextChunk(chunk.type)) return null;
+    final split = chunk.data.indexOf(0);
+    if (split <= 0) return null;
+    return latin1.decode(chunk.data.sublist(0, split));
   }
 
   /// 返回 (块类型, 块数据)

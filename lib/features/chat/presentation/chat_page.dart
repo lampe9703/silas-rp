@@ -274,9 +274,17 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 ),
               ),
             ),
-          if (card.statusEnabled && (state.session?.statusState.isNotEmpty ?? false))
+          // 只要卡片开了状态栏就渲染面板。
+          //
+          // 以前这里还要求 statusState 非空，于是下面几种情况整块面板直接消失，
+          // 看起来就是「状态栏时不时不见」：
+          //   · 作者只写了状态栏模板、没写初始状态（种子为空）
+          //   · 老会话的 status_state 是 '{}'，且卡片的初始状态/模板都空
+          //   · 本次回复没有可解析的状态块，状态一直没被写进去
+          // 没数据时面板自己会给占位（模板骨架 / 未设定），不会误导成「已关闭」。
+          if (card.statusEnabled)
             StatusPanel(
-              status: state.session!.statusState,
+              status: state.session?.statusState ?? const <String, dynamic>{},
               template: card.statusTemplate,
             ),
               ChatInputBar(

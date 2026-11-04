@@ -266,12 +266,8 @@ class _ApiConfigEditPageState extends ConsumerState<ApiConfigEditPage> {
             decoration: const InputDecoration(hintText: '留空由服务端决定'),
           ),
           const SizedBox(height: 8),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('流式输出', style: TextStyle(fontSize: 14)),
-            value: _stream,
-            onChanged: (v) => setState(() => _stream = v),
-          ),
+          // 流式输出开关已下线：请求一律走流式（见 ChatController._generateReply），
+          // 这个开关从来没有被消费，留着只会误导。字段本身保留，保存时原样带回。
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('设为默认配置', style: TextStyle(fontSize: 14)),
