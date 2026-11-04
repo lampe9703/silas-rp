@@ -1733,6 +1733,7 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
                           brightness,
                           label: '顺序',
                           controller: entry.orderController,
+                          focusNode: entry.orderFocus,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -1742,6 +1743,7 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
                           brightness,
                           label: '概率',
                           controller: entry.probabilityController,
+                          focusNode: entry.probabilityFocus,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -1793,63 +1795,70 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
     Brightness brightness, {
     required String label,
     required TextEditingController controller,
+    required FocusNode focusNode,
   }) {
     final isDark = brightness == Brightness.dark;
-    return Container(
-      height: 47,
-      padding: const EdgeInsets.fromLTRB(12, 5, 12, 7),
-      decoration: BoxDecoration(
-        color: isDark
-            ? Colors.white.withOpacity(0.13)
-            : Colors.white.withOpacity(0.72),
-        borderRadius: BorderRadius.circular(12),
-        border: isDark
-            ? null
-            : Border.all(color: GlassPalette.hairline(brightness)),
-      ),
-      child: Stack(
-        children: <Widget>[
-          Align(
-            alignment: Alignment.topLeft,
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                height: 1.2,
-                color: GlassPalette.inkSoftOf(brightness),
+    return GestureDetector(
+      // 整个液泡都是热区：点标签、点空白处都能进入编辑状态。
+      // 视觉完全不变，只是把命中区域从「那一行小字」放大到整块。
+      behavior: HitTestBehavior.opaque,
+      onTap: () => focusNode.requestFocus(),
+      child: Container(
+        height: 47,
+        padding: const EdgeInsets.fromLTRB(12, 5, 12, 7),
+        decoration: BoxDecoration(
+          color: isDark
+              ? Colors.white.withOpacity(0.13)
+              : Colors.white.withOpacity(0.72),
+          borderRadius: BorderRadius.circular(12),
+          border: isDark
+              ? null
+              : Border.all(color: GlassPalette.hairline(brightness)),
+        ),
+        child: Stack(
+          children: <Widget>[
+            Align(
+              alignment: Alignment.topLeft,
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.2,
+                  color: GlassPalette.inkSoftOf(brightness),
+                ),
               ),
             ),
-          ),
-          Align(
-            alignment: Alignment.bottomRight,
-            child: TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 12.5, height: 1.2),
-              onChanged: (_) => _scheduleDraftSave(),
-              decoration: const InputDecoration(
-                // 与「条目名」输入框同一套写法：**三种状态的边框全显式置空**。
-                // 只写 border 是不够的——enabledBorder / focusedBorder 仍会从
-                // 主题的 inputDecorationTheme 继承（细边框 + 聚焦时主题色高亮），
-                // 于是静止时有框、点进去还会亮一个高亮框。
-                isCollapsed: true,
-                filled: false,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-                hintText: '100',
-                hintStyle: TextStyle(fontSize: 12.5, height: 1.2),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: TextField(
+                controller: controller,
+                focusNode: focusNode,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.right,
+                style: const TextStyle(fontSize: 12.5, height: 1.2),
+                onChanged: (_) => _scheduleDraftSave(),
+                decoration: const InputDecoration(
+                  // 与「条目名」输入框同一套写法：各状态边框全显式置空。
+                  // 只写 border 不够——enabledBorder / focusedBorder 仍会从主题
+                  // 继承（细边框 + 聚焦时主题色高亮），于是静止有框、点进去还亮。
+                  isCollapsed: true,
+                  filled: false,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                  hintText: '100',
+                  hintStyle: TextStyle(fontSize: 12.5, height: 1.2),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -2245,6 +2254,10 @@ class _WorldEntryDraft {
   final TextEditingController probabilityController;
   final TextEditingController contentController;
 
+  /// 「顺序 / 概率」小框的焦点节点：整个液泡都是热区，点哪都能进入编辑
+  final FocusNode orderFocus = FocusNode();
+  final FocusNode probabilityFocus = FocusNode();
+
   WorldEntry toEntry() => WorldEntry(
         id: id,
         enabled: enabled,
@@ -2263,6 +2276,8 @@ class _WorldEntryDraft {
     orderController.dispose();
     probabilityController.dispose();
     contentController.dispose();
+    orderFocus.dispose();
+    probabilityFocus.dispose();
   }
 }
 
