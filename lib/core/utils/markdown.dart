@@ -242,8 +242,11 @@ List<Widget> buildMarkdownBlocks(
       continue;
     }
 
-    // 普通文本：攒段落（软换行合并为空格——对话场景简化）
-    if (paragraph.isNotEmpty) paragraph.write(' ');
+    // 普通文本：攒段落。
+    // 单换行必须**保留成换行**——角色扮演的正文几乎全靠单换行断句
+    // （对白、动作、心理各一行），合并成空格会把整段挤成一坨。
+    // 段间距仍由空行控制（空行会先 flushParagraph）。
+    if (paragraph.isNotEmpty) paragraph.write('\n');
     paragraph.write(trimmed);
     i++;
   }

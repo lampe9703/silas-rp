@@ -119,12 +119,19 @@ class ChatController extends FamilyNotifier<ChatState, String> {
     return desc.reversed.toList();
   }
 
-  ChatSession _createSession(CharacterCard card, int existingCount) {
+  /// 新建会话。
+  ///
+  /// [greetingIndex] 决定用哪一段开场白：0 = 主开场白，1..n = 第 n 段备选。
+  ChatSession _createSession(
+    CharacterCard card,
+    int existingCount, {
+    int greetingIndex = 0,
+  }) {
     final session = _sessionDao.create(
       cardId: card.id,
       title: existingCount == 0 ? card.name : '${card.name} #${existingCount + 1}',
     );
-    _seedGreeting(card, session, 0);
+    _seedGreeting(card, session, greetingIndex);
     if (card.statusEnabled) {
       // 初始状态为空时用「状态栏模板」兜底：新会话也能显示状态栏，
       // 且后续解析有 knownKeys 可用（模型漏写围栏也能从正文尾部提取）。
@@ -158,7 +165,15 @@ class ChatController extends FamilyNotifier<ChatState, String> {
   void newSession() {
     final card = state.card;
     if (card == null) return;
-    var session = _createSession(card, state.sessions.length);
+    // 新会话沿用「你此刻正在聊的这个会话」用的开场白：
+    // 作者写了多段备选开场白时，「再开一个」通常是拿同一段重新开始，
+    // 而不是每次都被拽回第一段。
+    final greetingIndex = state.session?.greetingSeq ?? 0;
+    var session = _createSession(
+      card,
+      state.sessions.length,
+      greetingIndex: greetingIndex,
+    );
     session = _sessionDao.byId(session.id) ?? session;
     final sessions = _sessionDao.listByCard(card.id);
     final messages = _loadPage(session.id);
