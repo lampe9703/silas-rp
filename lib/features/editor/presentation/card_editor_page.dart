@@ -2088,8 +2088,17 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
     // 否则对话框关闭时焦点还原会把输入法重新唤出
     parkKeyboard(context);
     final card = _buildCard();
+    // 预览要等于实际请求：扫描文本同样带上状态栏的值，
+    // 否则「人格 / 阶段」条目在预览里不出现，和真实发送的内容对不上。
     final worldText = const WorldBookEngine()
-        .activate(entries: card.worldBook, recentText: '（用户输入）')
+        .activate(
+          entries: card.worldBook,
+          recentText: WorldBookEngine.scanText(
+            recentLines: const <String>[],
+            userInput: '（用户输入）',
+            statusState: card.statusInitial,
+          ),
+        )
         .text;
     final preview = const PromptBuilder().buildPreview(
       card,

@@ -386,22 +386,24 @@ class ChatController extends FamilyNotifier<ChatState, String> {
     final builder = PromptBuilder(
       estimator: TokenEstimator(charsPerToken: settings.charsPerToken),
     );
-    // 世界书：拿最近 8 条对话 + 本轮输入做关键词扫描，概率按会话种子固定
-    final recentText = <String>[
-      ...historyForPrompt
-          .skip(historyForPrompt.length > 8 ? historyForPrompt.length - 8 : 0)
-          .map((m) => m.content),
-      userInput,
-    ].join('\n');
+    // 状态栏：会话里有快照就用快照，否则回落到角色卡的初始状态。
+    // 必须在世界书激活之前算出来：状态值里的 P3 / X2 这类编号本身就是世界书关键词。
+    final statusState = session.statusState.isNotEmpty
+        ? session.statusState
+        : card.statusInitial;
+
+    // 世界书：拿最近 8 条对话 + 本轮输入 + 状态栏的值做关键词扫描，
+    // 概率按会话种子固定。带上状态值是为了让「人格 / 阶段」条目能被编号命中。
+    final recentText = WorldBookEngine.scanText(
+      recentLines: historyForPrompt.map((m) => m.content).toList(),
+      userInput: userInput,
+      statusState: statusState,
+    );
     final world = WorldBookEngine(estimator: builder.estimator).activate(
       entries: card.worldBook,
       recentText: recentText,
       seed: session.id.hashCode,
     );
-    // 状态栏：会话里有快照就用快照，否则回落到角色卡的初始状态
-    final statusState = session.statusState.isNotEmpty
-        ? session.statusState
-        : card.statusInitial;
 
     final payload = builder.build(
       card: card,

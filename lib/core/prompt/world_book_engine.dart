@@ -43,6 +43,27 @@ class WorldBookEngine {
   /// 单次注入的 token 上限（幻梦「最大激活空间」的默认档）
   static const int defaultActivationBudget = 2000;
 
+  /// 拼出关键词扫描用的文本：最近若干条对话 + 本轮输入 + **状态栏的值**。
+  ///
+  /// 为什么必须带上状态值：不少卡把「人格 / 剧情阶段」写成独立条目，
+  /// 关键词就是状态编号本身（`P2` / `P3` / `X2`…）。这些编号只出现在状态栏里，
+  /// 玩家几乎不可能在对话中打出「P3」，不拼进来的话这些条目永远不激活，
+  /// 模型就只能拿到一句"当前是 P3"，拿不到 P3 那一整段行为指导。
+  static String scanText({
+    required List<String> recentLines,
+    required String userInput,
+    Map<String, dynamic> statusState = const <String, dynamic>{},
+    int tail = 8,
+  }) {
+    final parts = <String>[
+      ...recentLines.skip(recentLines.length > tail ? recentLines.length - tail : 0),
+      userInput,
+    ];
+    final hint = statusState.values.map((v) => '$v').join(' ');
+    if (hint.trim().isNotEmpty) parts.add(hint);
+    return parts.join('\n');
+  }
+
   WorldBookActivation activate({
     required List<WorldEntry> entries,
     required String recentText,
