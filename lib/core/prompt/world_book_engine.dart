@@ -1,4 +1,5 @@
 import '../../features/characters/domain/world_entry.dart';
+import 'prompt_sanitizer.dart';
 import 'token_estimator.dart';
 
 /// 世界书激活结果。
@@ -23,9 +24,8 @@ class WorldBookActivation {
 
   bool get isEmpty => included.isEmpty;
 
-  /// 拼成一段可直接塞进 system 的文本
-  String get text =>
-      included.map((e) => e.content.trim()).where((e) => e.isNotEmpty).join('\n\n');
+  /// 拼成一段可直接塞进 system 的文本（注入前统一清洗）
+  String get text => WorldBookEngine.render(included);
 }
 
 /// 世界书触发引擎。
@@ -42,6 +42,22 @@ class WorldBookEngine {
 
   /// 单次注入的 token 上限（幻梦「最大激活空间」的默认档）
   static const int defaultActivationBudget = 2000;
+
+  /// 把若干条目拼成注入文本：每条先过 [PromptSanitizer]，去掉 YAML 残留与 `#` 行。
+  static String render(Iterable<WorldEntry> entries) => entries
+      .map((e) => PromptSanitizer.worldEntry(e.content))
+      .map((t) => t.trim())
+      .where((t) => t.isNotEmpty)
+      .join('\n\n');
+
+  /// 该条目是否是「被状态栏的值触发」的——也就是人格 / 阶段类条目。
+  ///
+  /// 常驻条目不算：它们本来就每轮都注入，不属于「当前这一档」。
+  static bool drivenByStatus(WorldEntry entry, String statusHint) {
+    if (entry.isConstant) return false;
+    if (statusHint.trim().isEmpty) return false;
+    return entry.matches(statusHint);
+  }
 
   /// 拼出关键词扫描用的文本：最近若干条对话 + 本轮输入 + **状态栏的值**。
   ///

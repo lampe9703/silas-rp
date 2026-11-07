@@ -2090,19 +2090,29 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
     final card = _buildCard();
     // 预览要等于实际请求：扫描文本同样带上状态栏的值，
     // 否则「人格 / 阶段」条目在预览里不出现，和真实发送的内容对不上。
-    final worldText = const WorldBookEngine()
-        .activate(
-          entries: card.worldBook,
-          recentText: WorldBookEngine.scanText(
-            recentLines: const <String>[],
-            userInput: '（用户输入）',
-            statusState: card.statusInitial,
-          ),
-        )
-        .text;
+    final statusHint =
+        card.statusInitial.values.map((v) => '$v').join(' ');
+    final world = const WorldBookEngine().activate(
+      entries: card.worldBook,
+      recentText: WorldBookEngine.scanText(
+        recentLines: const <String>[],
+        userInput: '（用户输入）',
+        statusState: card.statusInitial,
+      ),
+    );
+    // 预览与真实请求保持同一套拆分：人格段单独走 personaText
+    final personaEntries = world.included
+        .where((e) => WorldBookEngine.drivenByStatus(e, statusHint))
+        .toList();
+    final personaIds = personaEntries.map((e) => e.id).toSet();
+    final worldText = WorldBookEngine.render(
+      world.included.where((e) => !personaIds.contains(e.id)),
+    );
+    final personaText = WorldBookEngine.render(personaEntries);
     final preview = const PromptBuilder().buildPreview(
       card,
       worldText: worldText,
+      personaText: personaText,
       // 预览也要反映设置里的全局提示词，否则看到的内容和实际请求不一致
       globalStylePrompt: ref.read(appSettingsProvider).systemPrompt,
       nsfwEnabled: ref.read(appSettingsProvider).nsfwEnabled,

@@ -419,6 +419,17 @@ class ChatController extends FamilyNotifier<ChatState, String> {
       recentText: recentText,
       seed: session.id.hashCode,
     );
+    // 被状态值触发的那几条（人格 / 阶段）单独拎出来：
+    // 它们要和普通设定分开注入，并且放到 system 末尾，才压得住通用风格约束。
+    final statusHint = statusState.values.map((v) => '$v').join(' ');
+    final personaEntries = world.included
+        .where((e) => WorldBookEngine.drivenByStatus(e, statusHint))
+        .toList();
+    final personaIds = personaEntries.map((e) => e.id).toSet();
+    final worldText = WorldBookEngine.render(
+      world.included.where((e) => !personaIds.contains(e.id)),
+    );
+    final personaText = WorldBookEngine.render(personaEntries);
 
     final payload = builder.build(
       card: card,
@@ -427,7 +438,8 @@ class ChatController extends FamilyNotifier<ChatState, String> {
       contextLimit: settings.contextLimit,
       reservedForReply: apiConfig.maxTokens ?? 512,
       statusState: statusState,
-      worldText: world.text,
+      worldText: worldText,
+      personaText: personaText,
       // 设置页里的全局系统提示词（回复风格层）；卡片自己写了则优先卡片
       globalStylePrompt: settings.systemPrompt,
       // 成人向尺度：仅在设置里主动开启时注入

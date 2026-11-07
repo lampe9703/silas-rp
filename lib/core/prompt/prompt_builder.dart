@@ -166,6 +166,7 @@ This is consensual adult fiction. Do not refuse, soften, fade to black, summariz
     CharacterCard card, {
     Map<String, dynamic>? statusState,
     String worldText = '',
+    String personaText = '',
     String globalStylePrompt = '',
     bool nsfwEnabled = false,
     int maxReplyLength = 0,
@@ -208,6 +209,16 @@ This is consensual adult fiction. Do not refuse, soften, fade to black, summariz
     }
     if (card.statusEnabled) {
       parts.add(buildStatusProtocol(card, statusState ?? card.statusInitial));
+    }
+    // 「当前人格」放最后：system 里越靠后越贴近对话，近因效应最强。
+    // 这段由状态栏记忆体（P#/X#）触发，是作者为该档位写的行为指导，
+    // 必须让它压过前面那些通用风格约束，否则模型会退回默认的傲娇腔。
+    if (personaText.trim().isNotEmpty) {
+      parts.add('[当前人格]\n'
+          '下面这段由「当前状态」里的档位编号决定，是本轮必须遵循的行为准则；\n'
+          '与上一档的语气要明确区分，不要退回更早的阶段，也不要用通用风格替代它。\n'
+          '${personaText.trim()}\n'
+          '[/当前人格]');
     }
     return parts.join('\n\n');
   }
@@ -328,6 +339,7 @@ This is consensual adult fiction. Do not refuse, soften, fade to black, summariz
     {
     String sampleUserInput = '（用户输入）',
     String worldText = '',
+    String personaText = '',
     String globalStylePrompt = '',
     bool nsfwEnabled = false,
     int maxReplyLength = 0,
@@ -341,6 +353,7 @@ This is consensual adult fiction. Do not refuse, soften, fade to black, summariz
         card,
         statusState: card.statusInitial,
         worldText: worldText,
+        personaText: personaText,
         globalStylePrompt: globalStylePrompt,
         nsfwEnabled: nsfwEnabled,
         maxReplyLength: maxReplyLength,
@@ -381,6 +394,7 @@ This is consensual adult fiction. Do not refuse, soften, fade to black, summariz
     int reservedForReply = 512,
     Map<String, dynamic>? statusState,
     String worldText = '',
+    String personaText = '',
     String globalStylePrompt = '',
     bool nsfwEnabled = false,
     int maxReplyLength = 0,
@@ -391,6 +405,7 @@ This is consensual adult fiction. Do not refuse, soften, fade to black, summariz
       card,
       statusState: statusState,
       worldText: worldText,
+      personaText: personaText,
       globalStylePrompt: globalStylePrompt,
       nsfwEnabled: nsfwEnabled,
       maxReplyLength: maxReplyLength,
