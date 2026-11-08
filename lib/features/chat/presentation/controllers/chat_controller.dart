@@ -407,6 +407,10 @@ class ChatController extends FamilyNotifier<ChatState, String> {
     final effectiveContextLimit = cardGen?.contextLimit ?? settings.contextLimit;
     final effectiveTemperature =
         cardGen?.temperature ?? apiConfig.temperature ?? settings.temperature;
+    final effectiveNarrativeMode =
+        cardGen?.narrativeMode ?? settings.narrativeMode;
+    final effectiveMaxReply =
+        cardGen?.maxReplyLength ?? settings.maxReplyLength;
     // 状态栏：会话里有快照就用快照，否则回落到角色卡的初始状态。
     // 必须在世界书激活之前算出来：状态值里的 P3 / X2 这类编号本身就是世界书关键词。
     final statusState = session.statusState.isNotEmpty
@@ -451,8 +455,8 @@ class ChatController extends FamilyNotifier<ChatState, String> {
       // 成人向尺度：仅在设置里主动开启时注入
       nsfwEnabled: settings.nsfwEnabled,
       // 单句对话字数上限（0 = 不限）
-      maxReplyLength: settings.maxReplyLength,
-      narrativeMode: settings.narrativeMode,
+      maxReplyLength: effectiveMaxReply,
+      narrativeMode: effectiveNarrativeMode,
     );
 
     // 占位行：流式期间只更新 content 单列

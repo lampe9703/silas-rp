@@ -14,6 +14,7 @@ import 'controllers/chat_controller.dart';
 import 'widgets/chat_input_bar.dart';
 import 'widgets/message_bubble.dart';
 import 'widgets/status_panel.dart';
+import '../../characters/domain/character_card.dart';
 import '../../characters/presentation/card_generation_sheet.dart';
 
 class ChatPage extends ConsumerStatefulWidget {
@@ -33,6 +34,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
   /// 返回拦截去重：收键盘的短暂延迟期间连按返回不会重入
   bool _popping = false;
+
+  /// 参数提示只在本页生命周期内弹一次
+  bool _paramNoticeShown = false;
 
   @override
   void dispose() {
@@ -60,6 +64,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     final provider = chatControllerProvider(widget.cardId);
     final state = ref.watch(provider);
     final controller = ref.read(provider.notifier);
+
+    _maybeShowParamNotice(state);
 
     // 新消息到达时贴底（列表为 reverse，offset 0 即底部）
     ref.listen<ChatState>(provider, (previous, next) {
@@ -636,6 +642,55 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       danger: true,
     );
     if (ok) controller.switchGreeting(selected);
+  }
+
+  /// 进聊天时提示一次：生成参数已全量搬到角色卡菜单。
+  ///
+  /// 玩家在参数面板里勾选「已确认」后，这张卡不再提示；
+  /// 取消勾选会恢复提示。同一页面生命周期内只弹一次，避免重建时反复弹。
+  void _maybeShowParamNotice(ChatState state) {
+    if (_paramNoticeShown) return;
+    final card = state.card;
+    if (card == null) return;
+    _paramNoticeShown = true;
+    final ack = ref.read(cardGenerationDaoProvider).isAcknowledged(card.id);
+    if (ack) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _showParamNotice(card);
+    });
+  }
+
+  Future<void> _showParamNotice(CharacterCard card) async {
+    final open = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('生成参数已改为按角色卡设置',
+            style: TextStyle(fontSize: 16)),
+        content: const Text(
+          '叙述视角、温度、上下文上限、单次回复上限，现在都在角色卡菜单里调整'
+          '（在卡库长按封面即可打开「生成参数」）。\n\n'
+          '这张卡还没有单独设置过，会沿用内置默认值。默认值不一定贴合它的写法，'
+          '有可能让角色表现偏离预期。\n\n'
+          '建议先打开「生成参数」核对一遍；确认合适后勾选面板底部的'
+          '「已确认这些参数符合我的需求」，这张卡之后就不会再提示。',
+          style: TextStyle(fontSize: 13, height: 1.6),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('稍后'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('去设置'),
+          ),
+        ],
+      ),
+    );
+    if (open == true && mounted) {
+      await showCardGenerationSheet(context, ref, card);
+    }
   }
 
   /// 生成参数：改为按「这张卡」设置（原来改的是全局值，会波及所有卡）。

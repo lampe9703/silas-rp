@@ -55,6 +55,8 @@ class CharacterRepository {
       'silas_generation': <String, dynamic>{
         if (gen.temperature != null) 'temperature': gen.temperature,
         if (gen.contextLimit != null) 'context_limit': gen.contextLimit,
+        if (gen.narrativeMode != null) 'narrative_mode': gen.narrativeMode,
+        if (gen.maxReplyLength != null) 'max_reply_length': gen.maxReplyLength,
       },
     };
   }
@@ -76,8 +78,21 @@ class CharacterRepository {
       if (payload is! Map) return;
       final temperature = (payload['temperature'] as num?)?.toDouble();
       final contextLimit = (payload['context_limit'] as num?)?.toInt();
-      if (temperature == null && contextLimit == null) return;
-      gen.save(card.id, temperature: temperature, contextLimit: contextLimit);
+      final narrativeMode = payload['narrative_mode'] as String?;
+      final maxReplyLength = (payload['max_reply_length'] as num?)?.toInt();
+      if (temperature == null &&
+          contextLimit == null &&
+          narrativeMode == null &&
+          maxReplyLength == null) {
+        return;
+      }
+      gen.save(
+        card.id,
+        temperature: temperature,
+        contextLimit: contextLimit,
+        narrativeMode: narrativeMode,
+        maxReplyLength: maxReplyLength,
+      );
     } catch (_) {
       // 参数块坏了就忽略，不影响卡片本身
     }

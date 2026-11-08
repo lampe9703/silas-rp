@@ -176,66 +176,6 @@ class SettingsPage extends ConsumerWidget {
           const SizedBox(height: 18),
           _PromptSettingsCard(nsfwUnlocked: settings.nsfwUnlocked),
           const SizedBox(height: 18),
-          SectionCard(
-            title: '生成参数',
-            children: [
-              ListTile(
-                title: const Text('叙述视角', style: TextStyle(fontSize: 14)),
-                subtitle: const Text(
-                  '角色扮演：以角色本人第一人称回应；'
-                  '作者视角：第三人称全知，可描写所有角色',
-                  style: TextStyle(fontSize: 11.5),
-                ),
-                trailing: SegmentedButton<String>(
-                  segments: const <ButtonSegment<String>>[
-                    ButtonSegment(value: 'character', label: Text('角色')),
-                    ButtonSegment(value: 'author', label: Text('作者')),
-                  ],
-                  selected: <String>{settings.narrativeMode},
-                  onSelectionChanged: (v) => ref
-                      .read(appSettingsProvider.notifier)
-                      .setNarrativeMode(v.first),
-                ),
-              ),
-              const Divider(height: 1, indent: 16, endIndent: 16),
-              _SliderTile(
-                title: '默认温度',
-                value: settings.temperature,
-                min: 0,
-                max: 2,
-                divisions: 40,
-                display: settings.temperature.toStringAsFixed(2),
-                onChanged: (v) =>
-                    ref.read(appSettingsProvider.notifier).setTemperature(v),
-              ),
-              const Divider(height: 1, indent: 16, endIndent: 16),
-              _SliderTile(
-                title: '上下文上限',
-                value: settings.contextLimit.toDouble(),
-                min: 1024,
-                max: 32768,
-                divisions: 31,
-                display: '${settings.contextLimit} tokens',
-                onChanged: (v) => ref
-                    .read(appSettingsProvider.notifier)
-                    .setContextLimit(v.round()),
-              ),
-              const Divider(height: 1, indent: 16, endIndent: 16),
-              _SliderTile(
-                title: '单次回复上限',
-                value: settings.maxReplyLength.toDouble(),
-                min: 0,
-                max: 2000,
-                divisions: 40,
-                display: settings.maxReplyLength == 0
-                    ? '不限'
-                    : '${settings.maxReplyLength} 字',
-                onChanged: (v) => ref
-                    .read(appSettingsProvider.notifier)
-                    .setMaxReplyLength(v.round()),
-              ),
-            ],
-          ),
           const SizedBox(height: 18),
           SectionCard(
             title: '计费',
@@ -522,60 +462,6 @@ class _PromptSettingsCardState extends ConsumerState<_PromptSettingsCard> {
   }
 }
 
-class _SliderTile extends StatelessWidget {
-  const _SliderTile({
-    required this.title,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.divisions,
-    required this.display,
-    required this.onChanged,
-  });
-
-  final String title;
-  final double value;
-  final double min;
-  final double max;
-  final int divisions;
-  final String display;
-  final ValueChanged<double> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(title, style: const TextStyle(fontSize: 14)),
-              Text(
-                display,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-            ],
-          ),
-          Slider(
-            value: value.clamp(min, max),
-            min: min,
-            max: max,
-            divisions: divisions,
-            onChanged: onChanged,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 主题色 / 点缀色输入行：色块预览 + 十六进制输入框。
-/// 输入合法（#RGB / #RRGGBB / RRGGBB）即生效；清空并提交 = 恢复默认。
 class _ColorField extends StatefulWidget {
   const _ColorField({
     required this.title,

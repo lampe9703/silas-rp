@@ -508,7 +508,7 @@ Future<void> showCharacterActions(
               leading: const Icon(Icons.tune_rounded),
               title: const Text('生成参数'),
               subtitle: const Text(
-                '温度 / 上下文上限，仅对这张卡生效',
+                '叙述视角 / 温度 / 上下文 / 回复上限',
                 style: TextStyle(fontSize: 11.5),
               ),
               onTap: () {

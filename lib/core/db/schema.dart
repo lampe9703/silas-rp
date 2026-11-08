@@ -4,7 +4,7 @@
 /// 所有时间字段为毫秒时间戳（INTEGER），所有金额为「微单位」（INTEGER）。
 library;
 
-const int kSchemaVersion = 6;
+const int kSchemaVersion = 8;
 
 /// v1 建表语句。按依赖顺序排列（被引用的表在前）。
 const List<String> kSchemaV1 = <String>[
@@ -233,6 +233,22 @@ const List<String> kSchemaV3 = <String>[
 /// v4：简介独立成列（人设正文不再兼任列表简介）
 const List<String> kSchemaV4 = <String>[
   "ALTER TABLE character_cards ADD COLUMN summary TEXT NOT NULL DEFAULT ''",
+];
+
+/// v8：记录玩家是否已确认这张卡的生成参数。
+///
+/// 未确认时进入聊天会弹一次提示（参数已全量搬到卡菜单），
+/// 勾选后不再打扰。
+const List<String> kSchemaV8 = <String>[
+  'ALTER TABLE card_generation ADD COLUMN params_ack INTEGER NOT NULL DEFAULT 0',
+];
+
+/// v7：卡级生成参数补上「叙述视角」和「单次回复上限」。
+///
+/// 设置页的「生成参数」整块下线后，这四项都改成按卡设置。
+const List<String> kSchemaV7 = <String>[
+  'ALTER TABLE card_generation ADD COLUMN narrative_mode TEXT',
+  'ALTER TABLE card_generation ADD COLUMN max_reply_length INTEGER',
 ];
 
 /// v6：每张卡的生成参数（温度 / 上下文上限）。

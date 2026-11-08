@@ -5,10 +5,10 @@ import '../../../app_providers.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../domain/character_card.dart';
 
-/// 单张卡的生成参数（温度 / 上下文上限）。
+/// 单张卡的生成参数：叙述视角 / 温度 / 上下文上限 / 单次回复上限。
 ///
-/// 值存在独立的 `card_generation` 表里，**不动角色卡结构**；
-/// 两个参数都可留空 —— 留空即「跟随全局默认」。
+/// 值存在独立的 `card_generation` 表里，**不动角色卡结构**。
+/// 设置页不再提供这四项的全局入口，全部按卡设置；没有记录时用内置默认值。
 /// 入口：卡库长按菜单、聊天页右上角菜单，两处共用这一个面板。
 Future<void> showCardGenerationSheet(
   BuildContext context,
@@ -20,9 +20,11 @@ Future<void> showCardGenerationSheet(
   final dao = ref.read(cardGenerationDaoProvider);
   final saved = dao.byCard(card.id);
 
-  var followGlobal = saved == null || saved.isEmpty;
   var temperature = saved?.temperature ?? settings.temperature;
   var contextLimit = saved?.contextLimit ?? settings.contextLimit;
+  var narrativeMode = saved?.narrativeMode ?? settings.narrativeMode;
+  var maxReplyLength = saved?.maxReplyLength ?? settings.maxReplyLength;
+  var acknowledged = saved?.paramsAck ?? false;
 
   await showModalBottomSheet<void>(
     context: context,
@@ -33,7 +35,7 @@ Future<void> showCardGenerationSheet(
         final scheme = Theme.of(sheetContext).colorScheme;
         final muted = scheme.onSurfaceVariant;
         return SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -48,72 +50,98 @@ Future<void> showCardGenerationSheet(
                   '仅对「${card.name}」生效',
                   style: TextStyle(fontSize: 12, color: muted),
                 ),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('跟随全局默认', style: TextStyle(fontSize: 14)),
-                  subtitle: Text(
-                    '打开时不写入这张卡的参数；关闭后下面的数值才生效',
-                    style: TextStyle(fontSize: 11.5, color: muted),
-                  ),
-                  value: followGlobal,
-                  onChanged: (v) => setSheetState(() => followGlobal = v),
-                ),
-                const Divider(height: 20),
-                Opacity(
-                  opacity: followGlobal ? 0.45 : 1,
-                  child: IgnorePointer(
-                    ignoring: followGlobal,
-                    child: Column(
-                      children: [
-                        _SliderRow(
-                          label: '温度',
-                          value: temperature,
-                          min: 0,
-                          max: 2,
-                          divisions: 40,
-                          display: temperature.toStringAsFixed(2),
-                          onChanged: (v) =>
-                              setSheetState(() => temperature = v),
-                        ),
-                        _SliderRow(
-                          label: '上下文上限',
-                          value: contextLimit.toDouble(),
-                          min: 1024,
-                          max: 32768,
-                          divisions: 31,
-                          display: '$contextLimit tokens',
-                          onChanged: (v) =>
-                              setSheetState(() => contextLimit = v.round()),
-                        ),
-                      ],
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text('叙述视角', style: TextStyle(fontSize: 13)),
                     ),
-                  ),
+                    SegmentedButton<String>(
+                      segments: const <ButtonSegment<String>>[
+                        ButtonSegment(value: 'character', label: Text('角色')),
+                        ButtonSegment(value: 'author', label: Text('作者')),
+                      ],
+                      selected: <String>{narrativeMode},
+                      onSelectionChanged: (v) =>
+                          setSheetState(() => narrativeMode = v.first),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
-                  '优先级：这张卡 > API 配置 > 全局默认。上下文越长费用越高。',
+                  '角色：以角色本人第一人称回应；作者：第三人称全知，可描写所有角色',
+                  style: TextStyle(fontSize: 11, height: 1.5, color: muted),
+                ),
+                const SizedBox(height: 10),
+                _SliderRow(
+                  label: '温度',
+                  value: temperature,
+                  min: 0,
+                  max: 2,
+                  divisions: 40,
+                  display: temperature.toStringAsFixed(2),
+                  onChanged: (v) => setSheetState(() => temperature = v),
+                ),
+                _SliderRow(
+                  label: '上下文上限',
+                  value: contextLimit.toDouble(),
+                  min: 1024,
+                  max: 32768,
+                  divisions: 31,
+                  display: '$contextLimit tokens',
+                  onChanged: (v) =>
+                      setSheetState(() => contextLimit = v.round()),
+                ),
+                _SliderRow(
+                  label: '单次回复上限',
+                  value: maxReplyLength.toDouble(),
+                  min: 0,
+                  max: 2000,
+                  divisions: 40,
+                  display: maxReplyLength == 0 ? '不限' : '$maxReplyLength 字',
+                  onChanged: (v) =>
+                      setSheetState(() => maxReplyLength = v.round()),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '优先级：这张卡 > API 配置（温度）> 内置默认。上下文越长费用越高。',
                   style: TextStyle(fontSize: 11.5, height: 1.5, color: muted),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 6),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: acknowledged,
+                  onChanged: (v) =>
+                      setSheetState(() => acknowledged = v ?? false),
+                  title: const Text(
+                    '已确认这些参数符合我的需求',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                  subtitle: Text(
+                    '勾选后，这张卡不会再弹参数提示；取消勾选会恢复提示',
+                    style: TextStyle(fontSize: 11, color: muted),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: () {
-                      if (followGlobal) {
-                        dao.clear(card.id);
-                      } else {
-                        dao.save(
-                          card.id,
-                          temperature: temperature,
-                          contextLimit: contextLimit,
-                        );
-                      }
+                      dao.save(
+                        card.id,
+                        temperature: temperature,
+                        contextLimit: contextLimit,
+                        narrativeMode: narrativeMode,
+                        maxReplyLength: maxReplyLength,
+                      );
+                      // 确认标记单独写，避免和参数保存互相覆盖
+                      dao.setAcknowledged(card.id, acknowledged);
                       Navigator.of(sheetContext).pop();
                       showToast(
                         context,
-                        followGlobal
-                            ? '已改为跟随全局默认'
+                        acknowledged
+                            ? '已保存，这张卡不再提示参数'
                             : '已保存「${card.name}」的生成参数',
                       );
                     },
