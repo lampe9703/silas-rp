@@ -26,7 +26,6 @@ class CharacterCard {
     this.source = 'manual',
     this.spec = 'v2',
     this.rawJson,
-    this.isFavorite = false,
     required this.createdAt,
     required this.updatedAt,
     this.lastChatAt,
@@ -62,7 +61,6 @@ class CharacterCard {
 
   /// 原始 JSON 里未被识别的扩展字段，导出时回填，保证 round-trip 不丢数据。
   final String? rawJson;
-  final bool isFavorite;
   final int createdAt;
   final int updatedAt;
   final int? lastChatAt;
@@ -155,7 +153,6 @@ class CharacterCard {
       source: (row['source'] as String?) ?? 'manual',
       spec: (row['spec'] as String?) ?? 'v2',
       rawJson: row['raw_json'] as String?,
-      isFavorite: ((row['is_favorite'] as int?) ?? 0) == 1,
       createdAt: (row['created_at'] as int?) ?? 0,
       updatedAt: (row['updated_at'] as int?) ?? 0,
       lastChatAt: row['last_chat_at'] as int?,
@@ -187,7 +184,6 @@ class CharacterCard {
         'source': source,
         'spec': spec,
         'raw_json': rawJson,
-        'is_favorite': isFavorite ? 1 : 0,
         'created_at': createdAt,
         'updated_at': updatedAt,
         'last_chat_at': lastChatAt,
@@ -272,7 +268,6 @@ class CharacterCard {
     String? source,
     String? spec,
     String? rawJson,
-    bool? isFavorite,
     int? createdAt,
     int? updatedAt,
     int? lastChatAt,
@@ -303,7 +298,6 @@ class CharacterCard {
       source: source ?? this.source,
       spec: spec ?? this.spec,
       rawJson: rawJson ?? this.rawJson,
-      isFavorite: isFavorite ?? this.isFavorite,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       lastChatAt: lastChatAt ?? this.lastChatAt,

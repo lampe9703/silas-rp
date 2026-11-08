@@ -150,9 +150,6 @@ class CharacterRepository {
     await _avatars.remove(card.avatarPath);
   }
 
-  Future<void> toggleFavorite(CharacterCard card) async {
-    _dao.toggleFavorite(card.id, !card.isFavorite);
-  }
 
   /// 记录最近聊天时间（对话页发送消息后调用，用于「按最近聊天」排序）
   void touchLastChat(String cardId) {

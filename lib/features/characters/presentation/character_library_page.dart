@@ -305,13 +305,6 @@ class _GridTile extends ConsumerWidget {
                             errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                           ),
                   ),
-                  if (card.isFavorite)
-                    const Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Icon(Icons.favorite_rounded,
-                          size: 16, color: Colors.white),
-                    ),
                 ],
               ),
             ),
@@ -427,9 +420,6 @@ class _ListTile extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        if (card.isFavorite)
-                          Icon(Icons.favorite_rounded,
-                              size: 14, color: scheme.primary),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -524,19 +514,6 @@ Future<void> showCharacterActions(
                 await repo.duplicate(card.id);
                 ref.read(characterListProvider.notifier).refresh();
                 if (context.mounted) showToast(context, '已复制');
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                card.isFavorite
-                    ? Icons.favorite_rounded
-                    : Icons.favorite_border_rounded,
-              ),
-              title: Text(card.isFavorite ? '取消收藏' : '加入收藏'),
-              onTap: () async {
-                Navigator.of(sheetContext).pop();
-                await repo.toggleFavorite(card);
-                ref.read(characterListProvider.notifier).refresh();
               },
             ),
             ListTile(

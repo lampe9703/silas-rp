@@ -175,9 +175,9 @@ class CharacterDao {
 INSERT INTO character_cards (
   id, name, summary, description, personality, scenario, first_mes, mes_example,
   system_prompt, post_history_instructions, creator, card_version,
-  avatar_path, source, spec, raw_json, is_favorite, created_at, updated_at, last_chat_at,
+  avatar_path, source, spec, raw_json, created_at, updated_at, last_chat_at,
   status_enabled, status_initial, status_rules, status_template, status_format, world_book
-) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 ON CONFLICT(id) DO UPDATE SET
   name = excluded.name,
   summary = excluded.summary,
@@ -194,7 +194,6 @@ ON CONFLICT(id) DO UPDATE SET
   source = excluded.source,
   spec = excluded.spec,
   raw_json = excluded.raw_json,
-  is_favorite = excluded.is_favorite,
   status_enabled = excluded.status_enabled,
   status_initial = excluded.status_initial,
   status_rules = excluded.status_rules,
@@ -220,7 +219,6 @@ ON CONFLICT(id) DO UPDATE SET
           card.source,
           card.spec,
           card.rawJson,
-          card.isFavorite ? 1 : 0,
           card.createdAt,
           card.updatedAt,
           card.lastChatAt,
@@ -272,12 +270,6 @@ ON CONFLICT(id) DO UPDATE SET
     _db.execute('DELETE FROM character_cards WHERE id = ?', [id]);
   }
 
-  void toggleFavorite(String id, bool value) {
-    _db.execute(
-      'UPDATE character_cards SET is_favorite = ? WHERE id = ?',
-      [value ? 1 : 0, id],
-    );
-  }
 
   void touchLastChat(String id, int at) {
     _db.execute(

@@ -4,7 +4,7 @@
 /// 所有时间字段为毫秒时间戳（INTEGER），所有金额为「微单位」（INTEGER）。
 library;
 
-const int kSchemaVersion = 8;
+const int kSchemaVersion = 9;
 
 /// v1 建表语句。按依赖顺序排列（被引用的表在前）。
 const List<String> kSchemaV1 = <String>[
@@ -233,6 +233,14 @@ const List<String> kSchemaV3 = <String>[
 /// v4：简介独立成列（人设正文不再兼任列表简介）
 const List<String> kSchemaV4 = <String>[
   "ALTER TABLE character_cards ADD COLUMN summary TEXT NOT NULL DEFAULT ''",
+];
+
+/// v9：收藏功能整体下线，顺手把 is_favorite 列删掉。
+///
+/// 老版本 SQLite 不支持 DROP COLUMN 时会被跳过（见 _migrate 里的容错），
+/// 留一个废弃列不影响读写：INSERT 不列它，取默认 0。
+const List<String> kSchemaV9 = <String>[
+  'ALTER TABLE character_cards DROP COLUMN is_favorite',
 ];
 
 /// v8：记录玩家是否已确认这张卡的生成参数。

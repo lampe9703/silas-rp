@@ -129,6 +129,17 @@ class AppDatabase {
           db.execute(stmt);
         }
       }
+      if (current < 9) {
+        // 收藏功能下线。DROP COLUMN 需要 SQLite 3.35+，
+        // 老版本删不掉就留着当废弃列，不能让整次迁移失败。
+        for (final stmt in kSchemaV9) {
+          try {
+            db.execute(stmt);
+          } catch (_) {
+            // 忽略：列留着不影响读写
+          }
+        }
+      }
       db.execute('PRAGMA user_version = $kSchemaVersion');
       db.execute('COMMIT');
     } catch (_) {
