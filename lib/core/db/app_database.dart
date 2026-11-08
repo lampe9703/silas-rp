@@ -114,6 +114,11 @@ class AppDatabase {
           db.execute(stmt);
         }
       }
+      if (current < 6) {
+        for (final stmt in kSchemaV6) {
+          db.execute(stmt);
+        }
+      }
       db.execute('PRAGMA user_version = $kSchemaVersion');
       db.execute('COMMIT');
     } catch (_) {

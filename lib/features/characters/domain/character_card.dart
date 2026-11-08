@@ -196,13 +196,22 @@ class CharacterCard {
       };
 
   /// 导出为 Character Card V2 结构
-  Map<String, dynamic> toTavernJson() {
+  /// [extraExtensions] 用于导出时临时塞入不属于角色设定的数据
+  /// （比如每张卡的生成参数 `silas_generation`），不改卡片结构。
+  Map<String, dynamic> toTavernJson({Map<String, dynamic>? extraExtensions}) {
     Map<String, dynamic> extensions = <String, dynamic>{};
     if (rawJson != null && rawJson!.isNotEmpty) {
       try {
         final decoded = jsonDecode(rawJson!);
-        if (decoded is Map && decoded['extensions'] is Map) {
-          extensions = Map<String, dynamic>.from(decoded['extensions'] as Map);
+        // v2 文档是 {spec, data:{extensions}}，v1 是扁平的 {extensions}
+        if (decoded is Map) {
+          final nested = decoded['data'];
+          final raw = (nested is Map && nested['extensions'] is Map)
+              ? nested['extensions']
+              : decoded['extensions'];
+          if (raw is Map) {
+            extensions = Map<String, dynamic>.from(raw);
+          }
         }
       } catch (_) {
         // 原始 JSON 损坏时忽略，不影响导出
@@ -221,6 +230,9 @@ class CharacterCard {
     }
     if (summary.trim().isNotEmpty) {
       extensions['dsh_summary'] = summary;
+    }
+    if (extraExtensions != null && extraExtensions.isNotEmpty) {
+      extensions.addAll(extraExtensions);
     }
     return <String, dynamic>{
       'spec': 'chara_card_v2',

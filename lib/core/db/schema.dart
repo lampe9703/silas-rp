@@ -4,7 +4,7 @@
 /// 所有时间字段为毫秒时间戳（INTEGER），所有金额为「微单位」（INTEGER）。
 library;
 
-const int kSchemaVersion = 5;
+const int kSchemaVersion = 6;
 
 /// v1 建表语句。按依赖顺序排列（被引用的表在前）。
 const List<String> kSchemaV1 = <String>[
@@ -233,6 +233,22 @@ const List<String> kSchemaV3 = <String>[
 /// v4：简介独立成列（人设正文不再兼任列表简介）
 const List<String> kSchemaV4 = <String>[
   "ALTER TABLE character_cards ADD COLUMN summary TEXT NOT NULL DEFAULT ''",
+];
+
+/// v6：每张卡的生成参数（温度 / 上下文上限）。
+///
+/// 单独一张表，**不动 character_cards 的结构**：参数属于"使用偏好"，
+/// 不是角色设定的一部分；卡被删时随外键一起清掉。
+/// 导出时会临时塞进 extensions['silas_generation']，导入时读回这张表。
+const List<String> kSchemaV6 = <String>[
+  '''
+CREATE TABLE card_generation (
+  card_id       TEXT    PRIMARY KEY REFERENCES character_cards(id) ON DELETE CASCADE,
+  temperature   REAL,
+  context_limit INTEGER,
+  updated_at    INTEGER NOT NULL
+)
+''',
 ];
 
 /// v5：把模型的思考过程（reasoning_content）存下来，供「查看思考过程」使用。

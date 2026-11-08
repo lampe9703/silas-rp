@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../app_providers.dart';
 import '../../../core/theme/glass_theme.dart';
@@ -8,7 +9,19 @@ import '../../../shared/widgets/app_widgets.dart';
 class AboutPage extends ConsumerStatefulWidget {
   const AboutPage({super.key});
 
-  static const String version = '1.0.0';
+  /// 版本号不再写死：从 APK 的 versionName / versionCode 读，
+  /// 以后每次改 pubspec 都会自动同步，不会再出现"关于页停在旧版本"。
+  static Future<String> loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      final build = info.buildNumber.trim();
+      return build.isEmpty
+          ? info.version
+          : '${info.version}（$build）';
+    } catch (_) {
+      return '未知';
+    }
+  }
 
   @override
   ConsumerState<AboutPage> createState() => _AboutPageState();
@@ -21,6 +34,15 @@ class _AboutPageState extends ConsumerState<AboutPage> {
 
   int _tapCount = 0;
   DateTime? _lastTapAt;
+  String _version = '';
+
+  @override
+  void initState() {
+    super.initState();
+    AboutPage.loadVersion().then((v) {
+      if (mounted) setState(() => _version = v);
+    });
+  }
 
   void _onNameTap() {
     final now = DateTime.now();
@@ -78,7 +100,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '版本 ${AboutPage.version}',
+                  _version.isEmpty ? '版本 …' : '版本 $_version',
                   style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
                 ),
               ],
@@ -137,7 +159,7 @@ class _AboutPageState extends ConsumerState<AboutPage> {
         onTap: () => showLicensePage(
           context: context,
           applicationName: 'Silas RP',
-          applicationVersion: 'v${AboutPage.version}',
+          applicationVersion: _version.isEmpty ? '' : 'v$_version',
           applicationLegalese: '本应用基于 Flutter 构建，不设后端、不收集数据。',
         ),
         borderRadius: BorderRadius.circular(14),

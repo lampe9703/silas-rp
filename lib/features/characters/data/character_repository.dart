@@ -1,10 +1,12 @@
-﻿import 'dart:typed_data';
+﻿import 'dart:convert';
+import 'dart:typed_data';
 
 import '../../../core/utils/ids.dart';
 import '../../../core/utils/time_utils.dart';
 import '../domain/character_card.dart';
 import 'avatar_storage.dart';
 import 'card_export_service.dart';
+import 'card_generation_dao.dart';
 import 'card_import_service.dart';
 import 'character_dao.dart';
 
@@ -30,17 +32,56 @@ class CharacterRepository {
   CharacterRepository({
     required CharacterDao dao,
     required AvatarStorage avatars,
+    CardGenerationDao? generation,
     CardImportService importer = const CardImportService(),
     CardExportService exporter = const CardExportService(),
   })  : _dao = dao,
         _avatars = avatars,
+        _generation = generation,
         _importer = importer,
         _exporter = exporter;
 
   final CharacterDao _dao;
   final AvatarStorage _avatars;
+  final CardGenerationDao? _generation;
   final CardImportService _importer;
   final CardExportService _exporter;
+
+  /// 导出时把这张卡的生成参数塞进 extensions（不写进卡片结构，只在这里附加）
+  Map<String, dynamic>? _generationExtension(CharacterCard card) {
+    final gen = _generation?.byCard(card.id);
+    if (gen == null || gen.isEmpty) return null;
+    return <String, dynamic>{
+      'silas_generation': <String, dynamic>{
+        if (gen.temperature != null) 'temperature': gen.temperature,
+        if (gen.contextLimit != null) 'context_limit': gen.contextLimit,
+      },
+    };
+  }
+
+  /// 导入后把 extensions 里的生成参数还原到 card_generation 表
+  void _restoreGeneration(CharacterCard card) {
+    final gen = _generation;
+    if (gen == null) return;
+    final raw = card.rawJson;
+    if (raw == null || raw.isEmpty) return;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      final nested = decoded['data'];
+      final extensions = (nested is Map && nested['extensions'] is Map)
+          ? nested['extensions']
+          : decoded['extensions'];
+      final payload = extensions is Map ? extensions['silas_generation'] : null;
+      if (payload is! Map) return;
+      final temperature = (payload['temperature'] as num?)?.toDouble();
+      final contextLimit = (payload['context_limit'] as num?)?.toInt();
+      if (temperature == null && contextLimit == null) return;
+      gen.save(card.id, temperature: temperature, contextLimit: contextLimit);
+    } catch (_) {
+      // 参数块坏了就忽略，不影响卡片本身
+    }
+  }
 
   List<CharacterCard> list({
     String? query,
@@ -149,10 +190,15 @@ class CharacterRepository {
         return ImportOutcome(failed: 1, failures: <String>[fileName ?? 'JSON']);
       }
       _dao.save(single.card);
+      _restoreGeneration(single.card);
       return const ImportOutcome(imported: 1);
     }
-    _dao.importAll(list.map((e) => e.card).toList());
-    return ImportOutcome(imported: list.length);
+    final cards = list.map((e) => e.card).toList();
+    _dao.importAll(cards);
+    for (final card in cards) {
+      _restoreGeneration(card);
+    }
+    return ImportOutcome(imported: cards.length);
   }
 
   /// 导出前一律按 id 回库重读一次。
@@ -161,14 +207,21 @@ class CharacterRepository {
   /// 卡片刚在编辑页改完、列表还没重建时，直接拿快照导出会得到改动前的内容。
   Future<String> exportJson(CharacterCard card) async {
     final fresh = _dao.byId(card.id) ?? card;
-    final file = await _exporter.exportJson(fresh);
+    final file = await _exporter.exportJson(
+      fresh,
+      extraExtensions: _generationExtension(fresh),
+    );
     return file.path;
   }
 
   Future<String?> exportPng(CharacterCard card) async {
     final fresh = _dao.byId(card.id) ?? card;
     final bytes = await _avatars.readBytes(fresh.avatarPath);
-    final file = await _exporter.exportPng(fresh, bytes);
+    final file = await _exporter.exportPng(
+      fresh,
+      bytes,
+      extraExtensions: _generationExtension(fresh),
+    );
     return file?.path;
   }
 

@@ -213,8 +213,8 @@ class SettingsPage extends ConsumerWidget {
                 title: '上下文上限',
                 value: settings.contextLimit.toDouble(),
                 min: 1024,
-                max: 16384,
-                divisions: 30,
+                max: 32768,
+                divisions: 31,
                 display: '${settings.contextLimit} tokens',
                 onChanged: (v) => ref
                     .read(appSettingsProvider.notifier)
@@ -225,8 +225,8 @@ class SettingsPage extends ConsumerWidget {
                 title: '单次回复上限',
                 value: settings.maxReplyLength.toDouble(),
                 min: 0,
-                max: 1000,
-                divisions: 20,
+                max: 2000,
+                divisions: 40,
                 display: settings.maxReplyLength == 0
                     ? '不限'
                     : '${settings.maxReplyLength} 字',

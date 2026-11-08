@@ -14,6 +14,7 @@ import 'controllers/chat_controller.dart';
 import 'widgets/chat_input_bar.dart';
 import 'widgets/message_bubble.dart';
 import 'widgets/status_panel.dart';
+import '../../characters/presentation/card_generation_sheet.dart';
 
 class ChatPage extends ConsumerStatefulWidget {
   const ChatPage({super.key, required this.cardId});
@@ -434,7 +435,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         await _showGreetings(state, controller);
         break;
       case 'params':
-        await _showGenerationParams();
+        await _showGenerationParams(state);
         break;
       case 'reasoning':
         await _showReasoning(state);
@@ -637,137 +638,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     if (ok) controller.switchGreeting(selected);
   }
 
-  Future<void> _showGenerationParams() async {
-    parkKeyboard(context);
-    final settings = ref.read(appSettingsProvider);
-    var temperature = settings.temperature;
-    var contextLimit = settings.contextLimit;
-    final apiConfig = ref.read(settingsRepositoryProvider).defaultApiConfig();
-
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (sheetContext, setSheetState) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '生成参数',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '当前模型：${apiConfig?.model ?? '未配置'}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _SliderRow(
-                  label: '温度',
-                  value: temperature,
-                  min: 0,
-                  max: 2,
-                  divisions: 40,
-                  display: temperature.toStringAsFixed(2),
-                  onChanged: (v) => setSheetState(() => temperature = v),
-                ),
-                _SliderRow(
-                  label: '上下文上限',
-                  value: contextLimit.toDouble(),
-                  min: 1024,
-                  max: 16384,
-                  divisions: 30,
-                  display: '$contextLimit tokens',
-                  onChanged: (v) =>
-                      setSheetState(() => contextLimit = v.round()),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '更长的上下文意味着更高的费用。修改后对后续请求生效。',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    height: 1.5,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () {
-                      ref
-                          .read(appSettingsProvider.notifier)
-                          .setTemperature(temperature);
-                      ref
-                          .read(appSettingsProvider.notifier)
-                          .setContextLimit(contextLimit);
-                      Navigator.of(sheetContext).pop();
-                    },
-                    child: const Text('保存'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SliderRow extends StatelessWidget {
-  const _SliderRow({
-    required this.label,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.divisions,
-    required this.display,
-    required this.onChanged,
-  });
-
-  final String label;
-  final double value;
-  final double min;
-  final double max;
-  final int divisions;
-  final String display;
-  final ValueChanged<double> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label, style: const TextStyle(fontSize: 13)),
-            Text(
-              display,
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ],
-        ),
-        Slider(
-          value: value.clamp(min, max),
-          min: min,
-          max: max,
-          divisions: divisions,
-          onChanged: onChanged,
-        ),
-      ],
-    );
+  /// 生成参数：改为按「这张卡」设置（原来改的是全局值，会波及所有卡）。
+  /// 全局默认仍在设置页里调。
+  Future<void> _showGenerationParams(ChatState state) async {
+    final card = state.card;
+    if (card == null) return;
+    await showCardGenerationSheet(context, ref, card);
   }
 }
 

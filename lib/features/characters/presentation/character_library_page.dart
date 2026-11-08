@@ -12,6 +12,7 @@ import '../../editor/presentation/card_editor_page.dart';
 import '../data/card_import_service.dart';
 import '../data/character_dao.dart';
 import '../data/character_repository.dart';
+import 'card_generation_sheet.dart';
 import '../domain/character_card.dart';
 import 'controllers/character_list_controller.dart';
 
@@ -501,6 +502,18 @@ Future<void> showCharacterActions(
                 Navigator.of(sheetContext).pop();
                 Navigator.of(context)
                     .push(glassPageRoute<void>(CardEditorPage(cardId: card.id)));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.tune_rounded),
+              title: const Text('生成参数'),
+              subtitle: const Text(
+                '温度 / 上下文上限，仅对这张卡生效',
+                style: TextStyle(fontSize: 11.5),
+              ),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                showCardGenerationSheet(context, ref, card);
               },
             ),
             ListTile(

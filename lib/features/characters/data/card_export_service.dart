@@ -24,13 +24,23 @@ class CardExportService {
     return dir;
   }
 
-  String toJsonString(CharacterCard card) =>
-      const JsonEncoder.withIndent('  ').convert(card.toTavernJson());
+  String toJsonString(
+    CharacterCard card, {
+    Map<String, dynamic>? extraExtensions,
+  }) =>
+      const JsonEncoder.withIndent('  ')
+          .convert(card.toTavernJson(extraExtensions: extraExtensions));
 
-  Future<File> exportJson(CharacterCard card) async {
+  Future<File> exportJson(
+    CharacterCard card, {
+    Map<String, dynamic>? extraExtensions,
+  }) async {
     final dir = await _exportDir();
     final file = File(p.join(dir.path, '${_safeName(card.name)}.json'));
-    await file.writeAsString(toJsonString(card), encoding: utf8);
+    await file.writeAsString(
+      toJsonString(card, extraExtensions: extraExtensions),
+      encoding: utf8,
+    );
     return file;
   }
 
@@ -38,9 +48,15 @@ class CardExportService {
   ///
   /// 头像字节常常来自导入的那张 PNG 卡，里面已经带着旧的 chara / ccv3 块；
   /// 写入前必须把它们剔掉，否则读取方取到的是第一个块，也就是导入时的原始卡。
-  Future<File?> exportPng(CharacterCard card, Uint8List? avatarBytes) async {
+  Future<File?> exportPng(
+    CharacterCard card,
+    Uint8List? avatarBytes, {
+    Map<String, dynamic>? extraExtensions,
+  }) async {
     if (avatarBytes == null || !PngCodec.isPng(avatarBytes)) return null;
-    final payload = base64.encode(utf8.encode(jsonEncode(card.toTavernJson())));
+    final payload = base64.encode(
+      utf8.encode(jsonEncode(card.toTavernJson(extraExtensions: extraExtensions))),
+    );
     final embedded = PngCodec.embedText(
       avatarBytes,
       'chara',

@@ -401,6 +401,12 @@ class ChatController extends FamilyNotifier<ChatState, String> {
     final builder = PromptBuilder(
       estimator: TokenEstimator(charsPerToken: settings.charsPerToken),
     );
+    // 生成参数优先级：这张卡（卡库长按菜单里设的）> API 配置 > 全局默认。
+    // 卡级参数存在独立的 card_generation 表里，不影响角色卡本身的结构。
+    final cardGen = ref.read(cardGenerationDaoProvider).byCard(card.id);
+    final effectiveContextLimit = cardGen?.contextLimit ?? settings.contextLimit;
+    final effectiveTemperature =
+        cardGen?.temperature ?? apiConfig.temperature ?? settings.temperature;
     // 状态栏：会话里有快照就用快照，否则回落到角色卡的初始状态。
     // 必须在世界书激活之前算出来：状态值里的 P3 / X2 这类编号本身就是世界书关键词。
     final statusState = session.statusState.isNotEmpty
@@ -435,7 +441,7 @@ class ChatController extends FamilyNotifier<ChatState, String> {
       card: card,
       history: historyForPrompt,
       userInput: userInput,
-      contextLimit: settings.contextLimit,
+      contextLimit: effectiveContextLimit,
       reservedForReply: apiConfig.maxTokens ?? 512,
       statusState: statusState,
       worldText: worldText,
@@ -486,7 +492,7 @@ class ChatController extends FamilyNotifier<ChatState, String> {
             messages: payload,
             cancelToken: cancelToken,
             maxTokens: apiConfig.maxTokens,
-            temperature: apiConfig.temperature ?? settings.temperature,
+            temperature: effectiveTemperature,
             topP: apiConfig.topP ?? settings.topP,
           );
 
