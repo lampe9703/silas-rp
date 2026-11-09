@@ -1606,17 +1606,58 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
       ),
     );
   }
-  /// 把当前条目收藏进「世界书收藏」：直接用条目名，不再弹窗
-  void _collectAsSnippet(int index) {
+  /// 从这张角色卡里删除一个世界书条目（二次确认，保存后不可恢复）
+  Future<void> _deleteWorldEntry(int index) async {
+    if (index < 0 || index >= _worldEntries.length) return;
     final entry = _worldEntries[index];
-    if (entry.contentController.text.trim().isEmpty) {
-      showToast(context, '这个条目还没有内容，先写点东西再收藏');
+    final name = entry.commentController.text.trim();
+    final ok = await showConfirmDialog(
+      context,
+      title: '删除世界书条目',
+      message: '「${name.isEmpty ? '未命名条目' : name}」会从这张角色卡里移除，'
+          '保存后不可恢复。收藏里的副本不受影响。',
+      confirmText: '删除',
+      danger: true,
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _worldEntries.removeAt(index).dispose());
+    _scheduleDraftSave();
+  }
+
+  /// 星标是一个开关：
+  /// * 未收藏 → 收藏当前条目（标题取条目名）
+  /// * 已收藏 → 从收藏里删掉同名条目（等于导入面板里的垃圾桶）
+  ///
+  /// 判断依据是**条目名**：把条目改名后就等于换了一条新世界书，星标会变回空心，
+  /// 收藏里的旧条目不受影响。
+  void _toggleSnippet(int index) {
+    final entry = _worldEntries[index];
+    final title = entry.commentController.text.trim();
+    final dao = ref.read(worldSnippetDaoProvider);
+
+    if (!_favoriteTitles.contains(title)) {
+      if (entry.contentController.text.trim().isEmpty) {
+        showToast(context, '这个条目还没有内容，先写点东西再收藏');
+        return;
+      }
+      final snippet = WorldSnippet.fromEntry(entry.toEntry());
+      dao.save(snippet);
+      setState(_refreshFavoriteTitles);
+      showToast(context, '已收藏「${snippet.title}」到世界书收藏');
       return;
     }
-    final snippet = WorldSnippet.fromEntry(entry.toEntry());
-    ref.read(worldSnippetDaoProvider).save(snippet);
+
+    // 已收藏：删掉收藏里所有同名的（顺带清掉之前重复收藏留下的副本）
+    final matches = dao
+        .list()
+        .where((s) => s.title.trim() == title)
+        .map((s) => s.id)
+        .toList();
+    for (final id in matches) {
+      dao.delete(id);
+    }
     setState(_refreshFavoriteTitles);
-    showToast(context, '已收藏「${snippet.title}」到世界书收藏');
+    showToast(context, '已取消收藏「$title」');
   }
 
   /// 从世界书收藏导入条目：重名默认跳过，可勾选覆盖；可全部按常驻导入
@@ -1773,8 +1814,8 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
                         padding: EdgeInsets.zero,
                         visualDensity: VisualDensity.compact,
                         splashRadius: 16,
-                        tooltip: favorited ? '已收藏（再点更新内容）' : '收藏为世界书',
-                        onPressed: () => _collectAsSnippet(index),
+                        tooltip: favorited ? '已收藏（点击取消收藏）' : '收藏为世界书',
+                        onPressed: () => _toggleSnippet(index),
                         icon: Icon(
                           favorited
                               ? Icons.star_rounded
@@ -1811,11 +1852,8 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
                     padding: EdgeInsets.zero,
                     visualDensity: VisualDensity.compact,
                     splashRadius: 16,
-                    tooltip: '删除',
-                    onPressed: () {
-                      setState(() => _worldEntries.removeAt(index).dispose());
-                      _scheduleDraftSave();
-                    },
+                    tooltip: '从这张卡删除',
+                    onPressed: () => _deleteWorldEntry(index),
                     icon: const Icon(
                       Icons.remove_circle_outline_rounded,
                       size: 17,

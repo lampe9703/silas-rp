@@ -52,16 +52,7 @@ Future<SnippetImportSelection?> showWorldSnippetPicker(
         final scheme = Theme.of(sheetContext).colorScheme;
         final muted = scheme.onSurfaceVariant;
 
-        Future<void> deleteSnippet(WorldSnippet snippet) async {
-          final ok = await showConfirmDialog(
-            sheetContext,
-            title: '删除这条收藏',
-            message: '「${snippet.title}」会从世界书收藏里移除。'
-                '已经导入到角色卡里的条目不受影响。',
-            confirmText: '删除',
-            danger: true,
-          );
-          if (!ok) return;
+        void deleteSnippet(WorldSnippet snippet) {
           dao.delete(snippet.id);
           setSheetState(() {
             all.removeWhere((e) => e.id == snippet.id);
@@ -161,6 +152,14 @@ Future<SnippetImportSelection?> showWorldSnippetPicker(
                                       children: <Widget>[
                                         Row(
                                           children: <Widget>[
+                                            // 类型标签放最前：贴着标题读起来像分类，
+                                            // 放到行尾会和右侧的删除图标挤在一起
+                                            _KindTag(
+                                              constant: s.kind ==
+                                                  WorldEntryKind.constant,
+                                              scheme: scheme,
+                                            ),
+                                            const SizedBox(width: 6),
                                             Expanded(
                                               child: Text(
                                                 s.title,
@@ -173,33 +172,44 @@ Future<SnippetImportSelection?> showWorldSnippetPicker(
                                                 ),
                                               ),
                                             ),
-                                            Text(
-                                              s.kind ==
-                                                      WorldEntryKind.constant
-                                                  ? '常驻'
-                                                  : '关键词',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                color: s.kind ==
-                                                        WorldEntryKind.constant
-                                                    ? scheme.secondary
-                                                    : scheme.primary,
-                                              ),
-                                            ),
                                           ],
                                         ),
                                         const SizedBox(height: 2),
-                                        Text(
-                                          s.content
-                                              .replaceAll(RegExp(r'\s+'), ' ')
-                                              .trim(),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 11.5,
-                                            height: 1.45,
-                                            color: muted,
-                                          ),
+                                        // 删除图标和「正文」放在同一行：
+                                        // 它会随正文块垂直居中，而不是贴着标题
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: <Widget>[
+                                            Expanded(
+                                              child: Text(
+                                                s.content
+                                                    .replaceAll(
+                                                        RegExp(r'\s+'), ' ')
+                                                    .trim(),
+                                                maxLines: 2,
+                                                overflow:
+                                                    TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 11.5,
+                                                  height: 1.45,
+                                                  color: muted,
+                                                ),
+                                              ),
+                                            ),
+                                            IconButton(
+                                              padding: EdgeInsets.zero,
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                              tooltip: '删除',
+                                              onPressed: () => deleteSnippet(s),
+                                              icon: Icon(
+                                                Icons.delete_outline_rounded,
+                                                size: 18,
+                                                color: muted,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                         if (s.useCount > 0)
                                           Padding(
@@ -214,17 +224,6 @@ Future<SnippetImportSelection?> showWorldSnippetPicker(
                                             ),
                                           ),
                                       ],
-                                    ),
-                                  ),
-                                  IconButton(
-                                    padding: EdgeInsets.zero,
-                                    visualDensity: VisualDensity.compact,
-                                    tooltip: '删除',
-                                    onPressed: () => deleteSnippet(s),
-                                    icon: Icon(
-                                      Icons.delete_outline_rounded,
-                                      size: 18,
-                                      color: muted,
                                     ),
                                   ),
                                 ],
@@ -297,4 +296,28 @@ Future<SnippetImportSelection?> showWorldSnippetPicker(
     ),
   );
   return result;
+}
+
+/// 「常驻 / 关键词」小标签
+class _KindTag extends StatelessWidget {
+  const _KindTag({required this.constant, required this.scheme});
+
+  final bool constant;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = constant ? scheme.secondary : scheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        constant ? '常驻' : '关键词',
+        style: TextStyle(fontSize: 9.5, height: 1.4, color: color),
+      ),
+    );
+  }
 }
