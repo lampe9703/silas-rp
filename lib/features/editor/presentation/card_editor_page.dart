@@ -118,10 +118,22 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
   bool _draftRestored = false;
   Timer? _draftTimer;
 
+  /// 已收藏进世界书收藏的标题集合：用来把条目的 ☆ 画成实心
+  Set<String> _favoriteTitles = <String>{};
+
   @override
   void initState() {
     super.initState();
+    _refreshFavoriteTitles();
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+  }
+
+  void _refreshFavoriteTitles() {
+    _favoriteTitles = ref
+        .read(worldSnippetDaoProvider)
+        .list()
+        .map((s) => s.title.trim())
+        .toSet();
   }
 
   @override
@@ -1603,6 +1615,7 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
     }
     final snippet = WorldSnippet.fromEntry(entry.toEntry());
     ref.read(worldSnippetDaoProvider).save(snippet);
+    setState(_refreshFavoriteTitles);
     showToast(context, '已收藏「${snippet.title}」到世界书收藏');
   }
 
@@ -1751,17 +1764,26 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
                 SizedBox(
                   width: 28,
                   height: 32,
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                    splashRadius: 16,
-                    tooltip: '收藏为世界书',
-                    onPressed: () => _collectAsSnippet(index),
-                    icon: Icon(
-                      Icons.star_border_rounded,
-                      size: 18,
-                      color: faint,
-                    ),
+                  child: ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: entry.commentController,
+                    builder: (context, value, _) {
+                      final favorited =
+                          _favoriteTitles.contains(value.text.trim());
+                      return IconButton(
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        splashRadius: 16,
+                        tooltip: favorited ? '已收藏（再点更新内容）' : '收藏为世界书',
+                        onPressed: () => _collectAsSnippet(index),
+                        icon: Icon(
+                          favorited
+                              ? Icons.star_rounded
+                              : Icons.star_border_rounded,
+                          size: 18,
+                          color: favorited ? scheme.primary : faint,
+                        ),
+                      );
+                    },
                   ),
                 ),
                 SizedBox(

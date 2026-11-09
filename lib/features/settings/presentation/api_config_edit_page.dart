@@ -146,10 +146,23 @@ class _ApiConfigEditPageState extends ConsumerState<ApiConfigEditPage> {
       showToast(context, '已保存');
       Navigator.of(context).pop();
     } catch (e) {
-      if (mounted) showToast(context, '保存失败：$e');
+      if (mounted) showToast(context, _friendlySaveError(e));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  /// 把底层数据库异常翻译成用户能看懂的话（不再把 SQL 原文甩给用户）
+  String _friendlySaveError(Object error) {
+    final text = error.toString();
+    if (text.contains('UNIQUE constraint failed: api_configs.is_default')) {
+      return '同一时间只能有一个默认配置：请先取消原来那项的默认，'
+          '或这次不勾选「设为默认配置」再保存。';
+    }
+    if (text.contains('UNIQUE constraint failed')) {
+      return '和已有记录冲突了，请检查名称后重试。';
+    }
+    return '保存失败，请稍后重试。';
   }
 
   Future<void> _delete() async {

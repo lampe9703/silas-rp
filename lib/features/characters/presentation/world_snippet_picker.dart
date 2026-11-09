@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_providers.dart';
-import '../../../shared/glass_route.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../domain/world_entry.dart';
 import '../domain/world_snippet.dart';
-import 'world_snippet_library_page.dart';
 
 /// 导入世界书的选项
 class SnippetImportSelection {
@@ -21,11 +19,11 @@ class SnippetImportSelection {
   /// 全部按常驻条目导入（词汇规范、感官规范这类本来就该常驻）
   final bool forceConstant;
 
-  /// 卡里已有同名条目时，用片段内容覆盖
+  /// 卡里已有同名条目时，用收藏内容覆盖
   final bool overwrite;
 }
 
-/// 世界书收藏的选择面板：搜索 + 多选 + 导入选项。
+/// 世界书收藏的选择面板：搜索 + 多选 + 导入选项，顺带管理（删除）收藏。
 ///
 /// 返回 null 表示取消。
 Future<SnippetImportSelection?> showWorldSnippetPicker(
@@ -53,6 +51,24 @@ Future<SnippetImportSelection?> showWorldSnippetPicker(
       builder: (sheetContext, setSheetState) {
         final scheme = Theme.of(sheetContext).colorScheme;
         final muted = scheme.onSurfaceVariant;
+
+        Future<void> deleteSnippet(WorldSnippet snippet) async {
+          final ok = await showConfirmDialog(
+            sheetContext,
+            title: '删除这条收藏',
+            message: '「${snippet.title}」会从世界书收藏里移除。'
+                '已经导入到角色卡里的条目不受影响。',
+            confirmText: '删除',
+            danger: true,
+          );
+          if (!ok) return;
+          dao.delete(snippet.id);
+          setSheetState(() {
+            all.removeWhere((e) => e.id == snippet.id);
+            selected.remove(snippet.id);
+          });
+        }
+
         final visible = all.where((s) {
           if (query.trim().isEmpty) return true;
           final q = query.trim().toLowerCase();
@@ -66,7 +82,7 @@ Future<SnippetImportSelection?> showWorldSnippetPicker(
           child: Column(
             children: <Widget>[
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 8, 6),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
                 child: Row(
                   children: <Widget>[
                     const Text(
@@ -77,20 +93,9 @@ Future<SnippetImportSelection?> showWorldSnippetPicker(
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '共 ${all.length} 条',
+                        '共 ${all.length} 条 · 右侧可删除',
                         style: TextStyle(fontSize: 11.5, color: muted),
                       ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(sheetContext).pop();
-                        Navigator.of(context).push(
-                          glassPageRoute<void>(
-                            const WorldSnippetLibraryPage(),
-                          ),
-                        );
-                      },
-                      child: const Text('管理', style: TextStyle(fontSize: 13)),
                     ),
                   ],
                 ),
@@ -115,7 +120,7 @@ Future<SnippetImportSelection?> showWorldSnippetPicker(
                 child: visible.isEmpty
                     ? Center(
                         child: Text(
-                          '没有匹配的世界书',
+                          all.isEmpty ? '收藏已经清空了' : '没有匹配的世界书',
                           style: TextStyle(fontSize: 12.5, color: muted),
                         ),
                       )
@@ -209,6 +214,17 @@ Future<SnippetImportSelection?> showWorldSnippetPicker(
                                             ),
                                           ),
                                       ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    visualDensity: VisualDensity.compact,
+                                    tooltip: '删除',
+                                    onPressed: () => deleteSnippet(s),
+                                    icon: Icon(
+                                      Icons.delete_outline_rounded,
+                                      size: 18,
+                                      color: muted,
                                     ),
                                   ),
                                 ],
