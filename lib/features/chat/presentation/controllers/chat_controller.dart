@@ -373,7 +373,7 @@ class ChatController extends FamilyNotifier<ChatState, String> {
 
     final settings = ref.read(appSettingsProvider);
     final settingsRepo = ref.read(settingsRepositoryProvider);
-    final apiConfig = settingsRepo.defaultApiConfig();
+    final apiConfig = resolveApiConfig();
     if (apiConfig == null) {
       state = state.copyWith(error: '还没有可用的 API 配置，请先到「设置 → API 配置」添加。');
       _refreshSessionMeta();
@@ -772,6 +772,44 @@ class ChatController extends FamilyNotifier<ChatState, String> {
       );
     }).toList();
     state = state.copyWith(messages: updated);
+  }
+
+  /// 这个会话当前实际使用的 API 配置。
+  ///
+  /// 优先级：会话指定的 → 全局默认。
+  /// 会话指定的配置被删掉时会自动回落到全局默认（不清理会话里的残留 id）。
+  ApiConfig? resolveApiConfig() {
+    final repo = ref.read(settingsRepositoryProvider);
+    final sessionId = state.session?.apiConfigId;
+    if (sessionId != null && sessionId.isNotEmpty) {
+      for (final config in repo.apiConfigs()) {
+        if (config.id == sessionId) return config;
+      }
+    }
+    return repo.defaultApiConfig();
+  }
+
+  /// 当前配置是不是「跟随全局默认」（会话没有单独指定）
+  bool get followsGlobalConfig {
+    final id = state.session?.apiConfigId;
+    return id == null || id.isEmpty;
+  }
+
+  /// 切换这个会话使用的模型。[configId] 传 null 表示跟随全局默认。
+  ///
+  /// 只影响之后发出的请求：已经存在的消息保留各自的模型记录。
+  void switchApiConfig(String? configId) {
+    final session = state.session;
+    if (session == null) return;
+    final normalized = (configId == null || configId.isEmpty) ? null : configId;
+    _sessionDao.setApiConfigId(session.id, normalized);
+    state = state.copyWith(
+      session: session.copyWith(
+        apiConfigId: normalized,
+        clearApiConfig: normalized == null,
+        updatedAt: nowMs(),
+      ),
+    );
   }
 
   /// 供 UI 展示的提示：当前会话 token 粗略占用

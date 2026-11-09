@@ -71,6 +71,14 @@ class SessionDao {
     );
   }
 
+  /// 设置这个会话用的 API 配置；传 null 表示跟随全局默认
+  void setApiConfigId(String id, String? apiConfigId) {
+    _db.execute(
+      'UPDATE chat_sessions SET api_config_id = ?, updated_at = ? WHERE id = ?',
+      [apiConfigId, nowMs(), id],
+    );
+  }
+
   void setGreetingSeq(String id, int seq) {
     _db.execute(
       'UPDATE chat_sessions SET greeting_seq = ?, updated_at = ? WHERE id = ?',

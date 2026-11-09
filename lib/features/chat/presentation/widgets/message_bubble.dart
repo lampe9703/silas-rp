@@ -200,7 +200,9 @@ class MessageBubble extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4, left: 3, right: 3),
                   child: Text(
-                    '${isUser ? '我' : card.name} · ${formatClock(message.createdAt)}',
+                    // 助手消息带上当时用的模型：中途换模型时一眼能看出分界
+                    '${isUser ? '我' : card.name} · ${formatClock(message.createdAt)}'
+                    '${message.isAssistant && (message.model ?? '').isNotEmpty ? ' · ${message.model}' : ''}',
                     style: TextStyle(
                       fontSize: 10.5,
                       letterSpacing: 0.2,

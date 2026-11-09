@@ -13,6 +13,7 @@ import '../domain/chat_models.dart';
 import 'controllers/chat_controller.dart';
 import 'widgets/chat_input_bar.dart';
 import 'widgets/message_bubble.dart';
+import 'widgets/model_picker_sheet.dart';
 import 'widgets/status_panel.dart';
 import '../../characters/domain/character_card.dart';
 import '../../characters/presentation/card_generation_sheet.dart';
@@ -299,6 +300,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                 controller: _inputController,
                 focusNode: _focusNode,
                 isStreaming: state.isStreaming,
+                modelLabel: controller.resolveApiConfig()?.model ?? '未配置',
+                onTapModel: () => showModelPickerSheet(context, ref, controller),
                 onStop: controller.stop,
                 onSend: () async {
                   final text = _inputController.text;

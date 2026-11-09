@@ -32,6 +32,7 @@ class ChatSession {
     this.lastMessageRole,
     this.isArchived = false,
     this.statusState = const <String, dynamic>{},
+    this.apiConfigId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -48,6 +49,9 @@ class ChatSession {
 
   /// 状态栏当前值（随对话推进，由模型输出的状态块更新）
   final Map<String, dynamic> statusState;
+
+  /// 这个会话指定的 API 配置；null = 跟随全局默认
+  final String? apiConfigId;
   final int createdAt;
   final int updatedAt;
 
@@ -62,6 +66,7 @@ class ChatSession {
         lastMessageRole: row['last_message_role'] as String?,
         isArchived: ((row['is_archived'] as int?) ?? 0) == 1,
         statusState: _decodeStatus(row['status_state']),
+        apiConfigId: row['api_config_id'] as String?,
         createdAt: (row['created_at'] as int?) ?? 0,
         updatedAt: (row['updated_at'] as int?) ?? 0,
       );
@@ -90,6 +95,8 @@ class ChatSession {
     String? lastMessageRole,
     bool? isArchived,
     Map<String, dynamic>? statusState,
+    String? apiConfigId,
+    bool clearApiConfig = false,
     int? updatedAt,
   }) =>
       ChatSession(
@@ -103,6 +110,8 @@ class ChatSession {
         lastMessageRole: lastMessageRole ?? this.lastMessageRole,
         isArchived: isArchived ?? this.isArchived,
         statusState: statusState ?? this.statusState,
+        apiConfigId:
+            clearApiConfig ? null : (apiConfigId ?? this.apiConfigId),
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );

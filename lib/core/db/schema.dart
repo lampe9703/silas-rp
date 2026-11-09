@@ -4,7 +4,7 @@
 /// 所有时间字段为毫秒时间戳（INTEGER），所有金额为「微单位」（INTEGER）。
 library;
 
-const int kSchemaVersion = 10;
+const int kSchemaVersion = 11;
 
 /// v1 建表语句。按依赖顺序排列（被引用的表在前）。
 const List<String> kSchemaV1 = <String>[
@@ -233,6 +233,14 @@ const List<String> kSchemaV3 = <String>[
 /// v4：简介独立成列（人设正文不再兼任列表简介）
 const List<String> kSchemaV4 = <String>[
   "ALTER TABLE character_cards ADD COLUMN summary TEXT NOT NULL DEFAULT ''",
+];
+
+/// v11：会话级模型选择。
+///
+/// 每个会话记住自己用哪个 API 配置（空 = 跟随全局默认），
+/// 这样在聊天中途换模型只影响这一段对话，不会波及其它卡。
+const List<String> kSchemaV11 = <String>[
+  'ALTER TABLE chat_sessions ADD COLUMN api_config_id TEXT',
 ];
 
 /// v10：世界书片段库（跨卡复用的通用条目）。

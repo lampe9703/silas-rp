@@ -12,6 +12,8 @@ class ChatInputBar extends StatelessWidget {
     required this.isStreaming,
     required this.onSend,
     required this.onStop,
+    required this.modelLabel,
+    required this.onTapModel,
   });
 
   final TextEditingController controller;
@@ -19,6 +21,10 @@ class ChatInputBar extends StatelessWidget {
   final bool isStreaming;
   final VoidCallback onSend;
   final VoidCallback onStop;
+
+  /// 当前会话使用的模型名（只用于提示，切换入口在输入框左侧）
+  final String modelLabel;
+  final VoidCallback onTapModel;
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +75,32 @@ class ChatInputBar extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: <Widget>[
+                // 左侧：切换模型（只影响当前会话）
+                // 尺寸与右侧发送按钮一致（42×42），两边视觉对称、上下居中
+                Padding(
+                  padding: const EdgeInsets.only(left: 2, right: 2),
+                  child: Tooltip(
+                    message: '切换模型（当前：$modelLabel）',
+                    child: Material(
+                      color: scheme.primary.withOpacity(isDark ? 0.18 : 0.10),
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: onTapModel,
+                        child: SizedBox(
+                          width: 42,
+                          height: 42,
+                          child: Icon(
+                            Icons.memory_rounded,
+                            size: 20,
+                            color: scheme.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 2),
                 Expanded(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 132),
