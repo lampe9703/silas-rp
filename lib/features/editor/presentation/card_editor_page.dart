@@ -118,21 +118,30 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
   bool _draftRestored = false;
   Timer? _draftTimer;
 
-  /// 已收藏进世界书收藏的标题集合：用来把条目的 ☆ 画成实心
-  Set<String> _favoriteTitles = <String>{};
+  /// 已收藏内容的指纹集合（标题 + 内容），用来判断条目的 ☆ 是否实心。
+  ///
+  /// 用「标题 + 内容」而不是只比标题：卡里的条目被改动内容后，
+  /// 它就是另一本世界书了，星标应当回到空心。
+  Set<String> _favoriteKeys = <String>{};
+
+  static String _snippetKey(String title, String content) =>
+      '${title.trim()}\u0000${content.trim()}';
+
+  bool _isCollected(String title, String content) =>
+      _favoriteKeys.contains(_snippetKey(title, content));
 
   @override
   void initState() {
     super.initState();
-    _refreshFavoriteTitles();
+    _refreshFavoriteKeys();
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
-  void _refreshFavoriteTitles() {
-    _favoriteTitles = ref
+  void _refreshFavoriteKeys() {
+    _favoriteKeys = ref
         .read(worldSnippetDaoProvider)
         .list()
-        .map((s) => s.title.trim())
+        .map((s) => _snippetKey(s.title, s.content))
         .toSet();
   }
 
@@ -1624,39 +1633,57 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
     _scheduleDraftSave();
   }
 
-  /// 星标是一个开关：
-  /// * 未收藏 → 收藏当前条目（标题取条目名）
+  /// 星标是一个开关，判断依据是「标题 + 内容」：
+  /// * 未收藏（含改了内容的情况）→ 收藏/更新到世界书收藏
   /// * 已收藏 → 从收藏里删掉同名条目（等于导入面板里的垃圾桶）
   ///
-  /// 判断依据是**条目名**：把条目改名后就等于换了一条新世界书，星标会变回空心，
-  /// 收藏里的旧条目不受影响。
+  /// 同名但内容不同时不会新建重复条目，而是更新那一条 —— 收藏里始终一个标题一条。
   void _toggleSnippet(int index) {
     final entry = _worldEntries[index];
     final title = entry.commentController.text.trim();
+    final content = entry.contentController.text;
     final dao = ref.read(worldSnippetDaoProvider);
 
-    if (!_favoriteTitles.contains(title)) {
-      if (entry.contentController.text.trim().isEmpty) {
+    if (!_isCollected(title, content)) {
+      if (content.trim().isEmpty) {
         showToast(context, '这个条目还没有内容，先写点东西再收藏');
         return;
       }
-      final snippet = WorldSnippet.fromEntry(entry.toEntry());
-      dao.save(snippet);
-      setState(_refreshFavoriteTitles);
-      showToast(context, '已收藏「${snippet.title}」到世界书收藏');
+      final base = WorldSnippet.fromEntry(entry.toEntry());
+      final sameTitle = dao
+          .list()
+          .where((s) => s.title.trim() == base.title.trim())
+          .toList();
+
+      if (sameTitle.isEmpty) {
+        dao.save(base);
+        showToast(context, '已收藏「${base.title}」到世界书收藏');
+      } else {
+        // 同名但内容变了：覆盖那一条，多余的重复副本一并清掉
+        dao.save(
+          sameTitle.first.copyWith(
+            content: base.content,
+            kind: base.kind,
+            keywords: base.keywords,
+            insertionOrder: base.insertionOrder,
+            probability: base.probability,
+            updatedAt: nowMs(),
+          ),
+        );
+        for (final extra in sameTitle.skip(1)) {
+          dao.delete(extra.id);
+        }
+        showToast(context, '已更新收藏「${base.title}」');
+      }
+      setState(_refreshFavoriteKeys);
       return;
     }
 
-    // 已收藏：删掉收藏里所有同名的（顺带清掉之前重复收藏留下的副本）
-    final matches = dao
-        .list()
-        .where((s) => s.title.trim() == title)
-        .map((s) => s.id)
-        .toList();
-    for (final id in matches) {
-      dao.delete(id);
+    // 已同步 → 取消收藏
+    for (final s in dao.list().where((s) => s.title.trim() == title)) {
+      dao.delete(s.id);
     }
-    setState(_refreshFavoriteTitles);
+    setState(_refreshFavoriteKeys);
     showToast(context, '已取消收藏「$title」');
   }
 
@@ -1805,11 +1832,16 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
                 SizedBox(
                   width: 28,
                   height: 32,
-                  child: ValueListenableBuilder<TextEditingValue>(
-                    valueListenable: entry.commentController,
-                    builder: (context, value, _) {
-                      final favorited =
-                          _favoriteTitles.contains(value.text.trim());
+                  child: AnimatedBuilder(
+                    animation: Listenable.merge(<Listenable>[
+                      entry.commentController,
+                      entry.contentController,
+                    ]),
+                    builder: (context, _) {
+                      final favorited = _isCollected(
+                        entry.commentController.text,
+                        entry.contentController.text,
+                      );
                       return IconButton(
                         padding: EdgeInsets.zero,
                         visualDensity: VisualDensity.compact,
