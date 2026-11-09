@@ -1,7 +1,7 @@
 name: ai_roleplay
 description: "本地优先的 AI 角色扮演前端壳程序（SillyTavern 兼容）"
 publish_to: 'none'
-version: 1.0.4+3132
+version: 1.0.5+3133
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
