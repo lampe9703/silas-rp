@@ -19,6 +19,8 @@ import '../../../shared/widgets/app_widgets.dart';
 import '../../settings/domain/settings_models.dart';
 import '../../characters/domain/character_card.dart';
 import '../../characters/domain/world_entry.dart';
+import '../../characters/domain/world_snippet.dart';
+import '../../characters/presentation/world_snippet_picker.dart';
 import '../../characters/presentation/controllers/character_list_controller.dart';
 import '../../chat/presentation/controllers/chat_controller.dart';
 
@@ -1580,12 +1582,90 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
                 icon: const Icon(Icons.add_rounded, size: 17),
                 label: const Text('关键词条目'),
               ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: _importSnippets,
+                icon: const Icon(Icons.star_rounded, size: 17),
+                label: const Text('导入世界书'),
+              ),
             ],
           ),
         ],
       ),
     );
   }
+  /// 把当前条目收藏进「世界书收藏」：直接用条目名，不再弹窗
+  void _collectAsSnippet(int index) {
+    final entry = _worldEntries[index];
+    if (entry.contentController.text.trim().isEmpty) {
+      showToast(context, '这个条目还没有内容，先写点东西再收藏');
+      return;
+    }
+    final snippet = WorldSnippet.fromEntry(entry.toEntry());
+    ref.read(worldSnippetDaoProvider).save(snippet);
+    showToast(context, '已收藏「${snippet.title}」到世界书收藏');
+  }
+
+  /// 从世界书收藏导入条目：重名默认跳过，可勾选覆盖；可全部按常驻导入
+  Future<void> _importSnippets() async {
+    final selection = await showWorldSnippetPicker(context, ref);
+    if (selection == null || !mounted) return;
+
+    var added = 0;
+    var replaced = 0;
+    var skipped = 0;
+
+    for (final snippet in selection.snippets) {
+      final title = snippet.title.trim();
+      final kind = selection.forceConstant
+          ? WorldEntryKind.constant
+          : snippet.kind;
+      final index = _worldEntries.indexWhere(
+        (e) => e.commentController.text.trim() == title,
+      );
+      if (index >= 0) {
+        if (!selection.overwrite) {
+          skipped++;
+          continue;
+        }
+        final target = _worldEntries[index];
+        target.kind = kind;
+        target.keywordsController.text = snippet.keywords;
+        target.orderController.text = '${snippet.insertionOrder}';
+        target.probabilityController.text = '${snippet.probability}';
+        target.contentController.text = snippet.content;
+        replaced++;
+        continue;
+      }
+      _worldEntries.add(
+        _WorldEntryDraft(
+          id: newId(),
+          kind: kind,
+          comment: title,
+          keywords: snippet.keywords,
+          insertionOrder: snippet.insertionOrder,
+          probability: snippet.probability,
+          content: snippet.content,
+        ),
+      );
+      added++;
+    }
+
+    setState(() {});
+    _scheduleDraftSave();
+    ref
+        .read(worldSnippetDaoProvider)
+        .bumpUse(selection.snippets.map((e) => e.id));
+
+    final parts = <String>[
+      if (added > 0) '导入 $added 条',
+      if (replaced > 0) '覆盖 $replaced 条',
+      if (skipped > 0) '跳过 $skipped 条（重名）',
+    ];
+    if (parts.isEmpty) return;
+    if (mounted) showToast(context, parts.join('，'));
+  }
+
   Widget _buildWorldEntryCard(int index, Brightness brightness) {
     final entry = _worldEntries[index];
     final isConstant = entry.kind == WorldEntryKind.constant;
@@ -1665,6 +1745,22 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
                         setState(() => entry.enabled = v);
                         _scheduleDraftSave();
                       },
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 28,
+                  height: 32,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                    splashRadius: 16,
+                    tooltip: '收藏为世界书',
+                    onPressed: () => _collectAsSnippet(index),
+                    icon: Icon(
+                      Icons.star_border_rounded,
+                      size: 18,
+                      color: faint,
                     ),
                   ),
                 ),

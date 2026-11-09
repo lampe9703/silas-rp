@@ -4,7 +4,7 @@
 /// 所有时间字段为毫秒时间戳（INTEGER），所有金额为「微单位」（INTEGER）。
 library;
 
-const int kSchemaVersion = 9;
+const int kSchemaVersion = 10;
 
 /// v1 建表语句。按依赖顺序排列（被引用的表在前）。
 const List<String> kSchemaV1 = <String>[
@@ -233,6 +233,27 @@ const List<String> kSchemaV3 = <String>[
 /// v4：简介独立成列（人设正文不再兼任列表简介）
 const List<String> kSchemaV4 = <String>[
   "ALTER TABLE character_cards ADD COLUMN summary TEXT NOT NULL DEFAULT ''",
+];
+
+/// v10：世界书片段库（跨卡复用的通用条目）。
+///
+/// 全局表，不挂任何卡；导入到卡里是复制快照。
+const List<String> kSchemaV10 = <String>[
+  '''
+CREATE TABLE world_snippets (
+  id              TEXT    PRIMARY KEY,
+  title           TEXT    NOT NULL DEFAULT '',
+  content         TEXT    NOT NULL DEFAULT '',
+  kind            TEXT    NOT NULL DEFAULT 'constant',
+  keywords        TEXT    NOT NULL DEFAULT '',
+  insertion_order INTEGER NOT NULL DEFAULT 100,
+  probability     INTEGER NOT NULL DEFAULT 100,
+  tags            TEXT    NOT NULL DEFAULT '',
+  use_count       INTEGER NOT NULL DEFAULT 0,
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL
+)
+''',
 ];
 
 /// v9：收藏功能整体下线，顺手把 is_favorite 列删掉。

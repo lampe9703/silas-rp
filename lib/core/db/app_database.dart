@@ -129,6 +129,11 @@ class AppDatabase {
           db.execute(stmt);
         }
       }
+      if (current < 10) {
+        for (final stmt in kSchemaV10) {
+          db.execute(stmt);
+        }
+      }
       if (current < 9) {
         // 收藏功能下线。DROP COLUMN 需要 SQLite 3.35+，
         // 老版本删不掉就留着当废弃列，不能让整次迁移失败。

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_providers.dart';
+import '../../characters/data/world_snippet_io.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../../characters/presentation/controllers/character_list_controller.dart';
 import '../presentation/settings_page.dart';
@@ -69,6 +70,36 @@ class _DataManagePageState extends ConsumerState<DataManagePage> {
                   style: TextStyle(fontSize: 11.5),
                 ),
                 onTap: _busy ? null : _import,
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          SectionCard(
+            title: '世界书收藏',
+            padding: EdgeInsets.zero,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.ios_share_rounded, size: 20),
+                title: const Text('导出世界书收藏', style: TextStyle(fontSize: 14)),
+                subtitle: const Text(
+                  '跨角色卡复用的通用条目，单独备份成 JSON',
+                  style: TextStyle(fontSize: 11.5),
+                ),
+                onTap: _busy
+                    ? null
+                    : () => exportWorldSnippets(context, ref),
+              ),
+              const Divider(height: 1, indent: 16, endIndent: 16),
+              ListTile(
+                leading: const Icon(Icons.file_download_outlined, size: 20),
+                title: const Text('导入世界书收藏', style: TextStyle(fontSize: 14)),
+                subtitle: const Text(
+                  '同名条目会自动跳过；不影响已有角色卡',
+                  style: TextStyle(fontSize: 11.5),
+                ),
+                onTap: _busy
+                    ? null
+                    : () => importWorldSnippets(context, ref),
               ),
             ],
           ),
