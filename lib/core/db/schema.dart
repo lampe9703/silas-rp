@@ -4,7 +4,7 @@
 /// 所有时间字段为毫秒时间戳（INTEGER），所有金额为「微单位」（INTEGER）。
 library;
 
-const int kSchemaVersion = 11;
+const int kSchemaVersion = 12;
 
 /// v1 建表语句。按依赖顺序排列（被引用的表在前）。
 const List<String> kSchemaV1 = <String>[
@@ -233,6 +233,13 @@ const List<String> kSchemaV3 = <String>[
 /// v4：简介独立成列（人设正文不再兼任列表简介）
 const List<String> kSchemaV4 = <String>[
   "ALTER TABLE character_cards ADD COLUMN summary TEXT NOT NULL DEFAULT ''",
+];
+
+/// v12：把每轮的本地审校结果存下来。
+///
+/// 存 JSON 而不是拆列：审校项会随规则增减变化，拆列每加一条就要迁移。
+const List<String> kSchemaV12 = <String>[
+  "ALTER TABLE messages ADD COLUMN audit TEXT NOT NULL DEFAULT ''",
 ];
 
 /// v11：会话级模型选择。

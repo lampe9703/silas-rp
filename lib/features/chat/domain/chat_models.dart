@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../../../core/prompt/response_auditor.dart';
+
 enum ChatRole { system, user, assistant }
 
 enum MessageStatus { pending, streaming, done, error, cancelled }
@@ -125,6 +127,7 @@ class ChatMessage {
     required this.role,
     this.content = '',
     this.reasoning = '',
+    this.auditJson = '',
     this.status = MessageStatus.done,
     this.variantGroup,
     this.variantIndex = 0,
@@ -151,6 +154,9 @@ class ChatMessage {
   /// 只用于「查看思考过程」，**绝不进入上下文**：喂回模型会污染后续输出。
   /// 不是所有模型都返回，没有时为空串。
   final String reasoning;
+
+  /// 本地审校结果的 JSON。空串 = 这条消息还没审校过（旧版本消息）。
+  final String auditJson;
   final MessageStatus status;
   final String? variantGroup;
   final int variantIndex;
@@ -176,6 +182,7 @@ class ChatMessage {
         role: ChatRoleX.parse(row['role'] as String?),
         content: (row['content'] as String?) ?? '',
         reasoning: (row['reasoning'] as String?) ?? '',
+        auditJson: (row['audit'] as String?) ?? '',
         status: MessageStatusX.parse(row['status'] as String?),
         variantGroup: row['variant_group'] as String?,
         variantIndex: (row['variant_index'] as int?) ?? 0,
@@ -212,9 +219,13 @@ class ChatMessage {
         'updated_at': updatedAt,
       };
 
+  /// 解析后的审校报告；没审校过返回 null。
+  AuditReport? get audit => AuditReport.fromJsonString(auditJson);
+
   ChatMessage copyWith({
     String? content,
     String? reasoning,
+    String? auditJson,
     MessageStatus? status,
     bool? isActiveVariant,
     bool? excludedFromContext,
@@ -233,6 +244,7 @@ class ChatMessage {
         role: role,
         content: content ?? this.content,
       reasoning: reasoning ?? this.reasoning,
+      auditJson: auditJson ?? this.auditJson,
         status: status ?? this.status,
         variantGroup: variantGroup,
         variantIndex: variantIndex,

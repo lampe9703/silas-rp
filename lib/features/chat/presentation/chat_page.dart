@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app_providers.dart';
+import '../../../core/prompt/response_auditor.dart';
 import '../../../core/theme/glass_theme.dart';
 import '../../../core/utils/time_utils.dart';
 import '../../../shared/widgets/app_widgets.dart';
@@ -213,6 +214,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                               message: state.messages.first,
                               card: card,
                               cardAvatar: avatarFile,
+                              onTapAudit: () =>
+                                  _showAudit(state.messages.first),
                               onLongPress: () => _showMessageActions(
                                 context,
                                 state.messages.first,
@@ -238,6 +241,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                             message: message,
                             card: card,
                             cardAvatar: avatarFile,
+                            onTapAudit: () => _showAudit(message),
                             onLongPress: () => _showMessageActions(
                               context,
                               message,
@@ -330,6 +334,156 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           child: const Text('加载更早的消息'),
         ),
       ),
+    );
+  }
+
+  /// 本地审校详情。只展示「能用规则判出来」的问题，
+  /// 每条都带命中的原文，避免用户只看到一句结论。
+  Future<void> _showAudit(ChatMessage message) async {
+    final report = message.audit;
+    if (report == null || report.issues.isEmpty) return;
+    final issues = report.sorted;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final brightness = Theme.of(sheetContext).brightness;
+        final scheme = Theme.of(sheetContext).colorScheme;
+        final faint = GlassPalette.inkFaintOf(brightness);
+        final soft = GlassPalette.inkSoftOf(brightness);
+
+        Color colorOf(AuditSeverity s) => switch (s) {
+              AuditSeverity.error => scheme.error,
+              AuditSeverity.warn => brightness == Brightness.dark
+                  ? const Color(0xFFEF9F27)
+                  : const Color(0xFFBA7517),
+              AuditSeverity.info => faint,
+            };
+
+        return FractionallySizedBox(
+          heightFactor: 0.72,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Row(
+                  children: <Widget>[
+                    Text(
+                      '审校结果',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: GlassPalette.inkOf(brightness),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${report.issues.length} 项',
+                        style: TextStyle(fontSize: 11.5, color: faint),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  itemCount: issues.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final issue = issues[index];
+                    final color = colorOf(issue.severity);
+                    return Container(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.07),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: color.withOpacity(0.28)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Row(
+                            children: <Widget>[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: color.withOpacity(0.16),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  issue.severity.label,
+                                  style: TextStyle(fontSize: 9.5, color: color),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  issue.type.label,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: GlassPalette.inkOf(brightness),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            issue.detail,
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.6,
+                              color: soft,
+                            ),
+                          ),
+                          if ((issue.evidence ?? '').isNotEmpty) ...<Widget>[
+                            const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                              decoration: BoxDecoration(
+                                color: color.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                issue.evidence!,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  height: 1.5,
+                                  color: soft,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                child: Text(
+                  '审校只检查能用规则判断的东西：状态块、记忆体、人称、重复、拒绝。'
+                  '不评价文笔和尺度，也不消耗 token。',
+                  style: TextStyle(fontSize: 11, height: 1.5, color: faint),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

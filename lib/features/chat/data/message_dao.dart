@@ -98,6 +98,14 @@ INSERT INTO messages (
     );
   }
 
+  /// 写入本地审校结果（JSON）
+  void setAudit(String messageId, String auditJson) {
+    _db.execute(
+      'UPDATE messages SET audit = ?, updated_at = ? WHERE id = ?',
+      [auditJson, nowMs(), messageId],
+    );
+  }
+
   void finalize(
     String messageId, {
     required MessageStatus status,

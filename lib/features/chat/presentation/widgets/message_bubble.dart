@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/prompt/response_auditor.dart';
 import '../../../../core/theme/glass_theme.dart';
 import '../../../../core/utils/markdown.dart';
 import '../../../../core/utils/time_utils.dart';
@@ -15,12 +16,16 @@ class MessageBubble extends StatelessWidget {
     required this.card,
     required this.cardAvatar,
     required this.onLongPress,
+    this.onTapAudit,
   });
 
   final ChatMessage message;
   final CharacterCard card;
   final File? cardAvatar;
   final VoidCallback onLongPress;
+
+  /// 点「审校」标签时打开详情；为空则不显示标签
+  final VoidCallback? onTapAudit;
 
   @override
   Widget build(BuildContext context) {
@@ -226,6 +231,16 @@ class MessageBubble extends StatelessWidget {
                       ),
                     ),
                   ),
+                if (message.isAssistant &&
+                    (message.audit?.issues.isNotEmpty ?? false))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5, left: 2),
+                    child: _AuditChip(
+                      report: message.audit!,
+                      brightness: brightness,
+                      onTap: onTapAudit,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -353,6 +368,54 @@ class _TypingDotsState extends State<_TypingDots>
           }),
         );
       },
+    );
+  }
+}
+
+/// 审校标签：只在发现问题时出现。干净的一轮不打扰。
+class _AuditChip extends StatelessWidget {
+  const _AuditChip({
+    required this.report,
+    required this.brightness,
+    this.onTap,
+  });
+
+  final AuditReport report;
+  final Brightness brightness;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final worst = report.worst;
+    final color = switch (worst) {
+      AuditSeverity.error => scheme.error,
+      AuditSeverity.warn => brightness == Brightness.dark
+          ? const Color(0xFFEF9F27)
+          : const Color(0xFFBA7517),
+      AuditSeverity.info => GlassPalette.inkFaintOf(brightness),
+    };
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(Icons.fact_check_outlined, size: 12, color: color),
+            const SizedBox(width: 4),
+            Text(
+              '审校 · ${report.issues.length} 项${worst.label}',
+              style: TextStyle(fontSize: 10, height: 1.3, color: color),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
