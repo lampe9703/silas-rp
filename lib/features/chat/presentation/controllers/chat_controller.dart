@@ -547,15 +547,9 @@ class ChatController extends FamilyNotifier<ChatState, String> {
       final text = parsed.visibleText
           .replaceAll('\u201c', '"')
           .replaceAll('\u201d', '"');
-      // 本地规则审校：零 token、纯确定性。只查「能用代码判」的东西，
-      // 文笔与尺度不在这里评价（那要靠模型审校，也最容易误报）。
+      // 本地规则审校：零 token、纯确定性。只查「模型有没有拒绝写」。
       final audit = const ResponseAuditor().audit(
         raw: buffer.toString(),
-        card: card,
-        narrativeMode: effectiveNarrativeMode,
-        // 此时状态还没合并，正好是「上一轮的状态」
-        previousStatus: statusState,
-        previousAssistantText: _previousAssistantText(placeholder.id),
         finishReason: finishReason,
       );
       // 干净就不落库：渲染层拿到空串会立刻返回 null，不用每帧解 JSON
@@ -773,16 +767,6 @@ class ChatController extends FamilyNotifier<ChatState, String> {
     _refreshSessionMeta();
   }
 
-  /// 上一条助手的正文，用于「与上一轮重复」检查
-  String? _previousAssistantText(String currentId) {
-    for (final m in state.messages.reversed) {
-      if (m.id == currentId) continue;
-      if (m.role == ChatRole.assistant && m.content.trim().isNotEmpty) {
-        return m.content;
-      }
-    }
-    return null;
-  }
 
   void _patchMessage(
     String id, {
