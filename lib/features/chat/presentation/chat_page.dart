@@ -10,6 +10,7 @@ import '../../../core/prompt/response_auditor.dart';
 import '../../../core/theme/glass_theme.dart';
 import '../../../core/utils/time_utils.dart';
 import '../../../shared/widgets/app_widgets.dart';
+import '../data/chat_export_service.dart';
 import '../domain/chat_models.dart';
 import 'controllers/chat_controller.dart';
 import 'widgets/chat_input_bar.dart';
@@ -182,6 +183,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                     value: 'greeting', child: Text('切换开场白')),
                 PopupMenuItem(value: 'params', child: Text('生成参数')),
                 PopupMenuItem(value: 'reasoning', child: Text('查看思考过程')),
+                PopupMenuItem(value: 'export', child: Text('导出聊天记录')),
                 PopupMenuItem(value: 'clear', child: Text('清空当前对话')),
                 PopupMenuItem(value: 'delete', child: Text('删除当前会话')),
               ],
@@ -345,6 +347,106 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           child: const Text('加载更早的消息'),
         ),
       ),
+    );
+  }
+
+  /// 导出当前会话（只这一个，不含角色卡定义）。
+  /// Markdown 给人看，JSON 给机器看。
+  Future<void> _showExportSheet(ChatState state) async {
+    final card = state.card;
+    final session = state.session;
+    if (card == null || session == null) return;
+    if (state.messages.isEmpty) {
+      showToast(context, '当前会话还没有消息，没有可导出的内容');
+      return;
+    }
+
+    var includeReasoning = false;
+    final brightness = Theme.of(context).brightness;
+    final faint = GlassPalette.inkFaintOf(brightness);
+    // 列表只装「当前选中的那条分支」，而 messageCount 统计的是全部行。
+    // 重 roll 过的会话两者会对不上，这里说清楚略过了多少，免得用户以为漏导。
+    final visible = state.messages.length;
+    final skipped =
+        session.messageCount > visible ? session.messageCount - visible : 0;
+
+    final format = await showModalBottomSheet<ChatExportFormat>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 2),
+                child: Text(
+                  '导出聊天记录',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: GlassPalette.inkOf(brightness),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text(
+                  '只导出当前会话 · $visible 条消息'
+                  '${skipped > 0 ? '，已略过 $skipped 条未选中的备选' : ''}',
+                  style: TextStyle(fontSize: 11.5, color: faint),
+                ),
+              ),
+              CheckboxListTile(
+                value: includeReasoning,
+                onChanged: (v) =>
+                    setSheetState(() => includeReasoning = v ?? false),
+                controlAffinity: ListTileControlAffinity.leading,
+                dense: true,
+                title: const Text('包含思考过程', style: TextStyle(fontSize: 13)),
+                subtitle: Text(
+                  '模型没返回思考时该项无内容；勾选后文件会明显变大',
+                  style: TextStyle(fontSize: 11, color: faint),
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.description_outlined, size: 20),
+                title: const Text('导出为 Markdown', style: TextStyle(fontSize: 14)),
+                subtitle: Text(
+                  '可读文本，按时间排列，适合存档或分享',
+                  style: TextStyle(fontSize: 11.5, color: faint),
+                ),
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(ChatExportFormat.markdown),
+              ),
+              ListTile(
+                leading: const Icon(Icons.data_object_rounded, size: 20),
+                title: const Text('导出为 JSON', style: TextStyle(fontSize: 14)),
+                subtitle: Text(
+                  '完整字段：角色、模型、时间戳、状态、token',
+                  style: TextStyle(fontSize: 11.5, color: faint),
+                ),
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(ChatExportFormat.json),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (format == null || !mounted) return;
+    await exportSession(
+      context,
+      card: card,
+      session: session,
+      messages: state.messages,
+      format: format,
+      includeReasoning: includeReasoning,
     );
   }
 
@@ -613,6 +715,9 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         break;
       case 'reasoning':
         await _showReasoning(state);
+        break;
+      case 'export':
+        await _showExportSheet(state);
         break;
       case 'clear':
         final ok = await showConfirmDialog(
