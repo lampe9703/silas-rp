@@ -40,6 +40,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   /// 参数提示只在本页生命周期内弹一次
   bool _paramNoticeShown = false;
 
+  /// 状态栏面板的 key：点消息区任意位置时用它把面板收起来
+  final GlobalKey<StatusPanelState> _statusKey =
+      GlobalKey<StatusPanelState>();
+
   @override
   void dispose() {
     _inputController.dispose();
@@ -193,64 +197,70 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           Column(
             children: [
           Expanded(
-            child: state.messages.isEmpty
-                ? const EmptyState(
-                    icon: Icons.chat_bubble_outline_rounded,
-                    title: '还没有对话',
-                    description: '在下方输入框说点什么，开始这段角色扮演。',
-                  )
-                : state.messages.length == 1 && !state.messages.first.isUser
-                    // 只有开场白时贴顶显示。
-                    // reverse 列表在内容不足一屏时会贴底排列，表现为开场白挤在
-                    // 输入框上方；这里单独渲染成顶部的普通滚动内容，符合「开场白
-                    // 在聊天区顶部」的预期。开始对话（≥2 条）后回到正常反向列表，
-                    // 开场白自然成为最上面那条。用户首条发言仍走正常贴底逻辑。
-                    ? SingleChildScrollView(
-                        padding: const EdgeInsets.only(top: 8, bottom: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: <Widget>[
-                            MessageBubble(
-                              message: state.messages.first,
+            child: GestureDetector(
+              // 点消息区任意位置收起状态面板。
+              // 输入框与顶部标题栏不在这个子树里，天然被排除。
+              behavior: HitTestBehavior.translucent,
+              onTap: _collapseStatusPanel,
+              child: state.messages.isEmpty
+                  ? const EmptyState(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      title: '还没有对话',
+                      description: '在下方输入框说点什么，开始这段角色扮演。',
+                    )
+                  : state.messages.length == 1 && !state.messages.first.isUser
+                      // 只有开场白时贴顶显示。
+                      // reverse 列表在内容不足一屏时会贴底排列，表现为开场白挤在
+                      // 输入框上方；这里单独渲染成顶部的普通滚动内容，符合「开场白
+                      // 在聊天区顶部」的预期。开始对话（≥2 条）后回到正常反向列表，
+                      // 开场白自然成为最上面那条。用户首条发言仍走正常贴底逻辑。
+                      ? SingleChildScrollView(
+                          padding: const EdgeInsets.only(top: 8, bottom: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              MessageBubble(
+                                message: state.messages.first,
+                                card: card,
+                                cardAvatar: avatarFile,
+                                onTapAudit: () =>
+                                    _showAudit(state.messages.first),
+                                onLongPress: () => _showMessageActions(
+                                  context,
+                                  state.messages.first,
+                                  state,
+                                  controller,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: _scrollController,
+                          reverse: true,
+                          padding: const EdgeInsets.only(top: 8, bottom: 8),
+                          itemCount: state.messages.length + 1,
+                          itemBuilder: (context, index) {
+                            if (index == state.messages.length) {
+                              return _buildTopLoader(state, controller);
+                            }
+                            final message =
+                                state.messages[state.messages.length - 1 - index];
+                            return MessageBubble(
+                              message: message,
                               card: card,
                               cardAvatar: avatarFile,
-                              onTapAudit: () =>
-                                  _showAudit(state.messages.first),
+                              onTapAudit: () => _showAudit(message),
                               onLongPress: () => _showMessageActions(
                                 context,
-                                state.messages.first,
+                                message,
                                 state,
                                 controller,
                               ),
-                            ),
-                          ],
+                            );
+                          },
                         ),
-                      )
-                    : ListView.builder(
-                        controller: _scrollController,
-                        reverse: true,
-                        padding: const EdgeInsets.only(top: 8, bottom: 8),
-                        itemCount: state.messages.length + 1,
-                        itemBuilder: (context, index) {
-                          if (index == state.messages.length) {
-                            return _buildTopLoader(state, controller);
-                          }
-                          final message =
-                              state.messages[state.messages.length - 1 - index];
-                          return MessageBubble(
-                            message: message,
-                            card: card,
-                            cardAvatar: avatarFile,
-                            onTapAudit: () => _showAudit(message),
-                            onLongPress: () => _showMessageActions(
-                              context,
-                              message,
-                              state,
-                              controller,
-                            ),
-                          );
-                        },
-                      ),
+            ),
           ),
           if (state.error != null)
             Padding(
@@ -297,6 +307,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           // 没数据时面板自己会给占位（模板骨架 / 未设定），不会误导成「已关闭」。
           if (card.statusEnabled)
             StatusPanel(
+              key: _statusKey,
               status: state.session?.statusState ?? const <String, dynamic>{},
               template: card.statusTemplate,
             ),
@@ -800,6 +811,10 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     );
     if (ok) controller.switchGreeting(selected);
   }
+
+  /// 点消息区任意位置收起状态面板。
+  /// 只有展开态才需要收；收起态调用是空操作。
+  void _collapseStatusPanel() => _statusKey.currentState?.collapse();
 
   /// 进聊天时提示一次：生成参数已全量搬到角色卡菜单。
   ///

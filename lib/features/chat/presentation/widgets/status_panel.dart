@@ -30,11 +30,18 @@ class StatusPanel extends StatefulWidget {
   final String title;
 
   @override
-  State<StatusPanel> createState() => _StatusPanelState();
+  State<StatusPanel> createState() => StatusPanelState();
 }
 
-class _StatusPanelState extends State<StatusPanel> {
+class StatusPanelState extends State<StatusPanel> {
   bool _expanded = false;
+
+  /// 收起面板。供聊天页在「点消息区任意位置」时调用。
+  /// 已经是收起态就什么都不做，避免无谓重建。
+  void collapse() {
+    if (!_expanded) return;
+    setState(() => _expanded = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,6 +148,9 @@ class _StatusPanelState extends State<StatusPanel> {
   Widget _expandedCard(Brightness brightness) {
     final scheme = Theme.of(context).colorScheme;
     final isDark = brightness == Brightness.dark;
+    // 头部与外框用同一套点缀色：亮色 = 主题点缀色，暗色 = 钢灰。
+    // 之前头部用 primary、外框用 secondary，两套颜色在一张卡里打架。
+    final accent = isDark ? _steelGray : scheme.secondary;
 
     // 外框：
     // * 上/右/下 1px 细边框 → 跟随点缀色（原设计 secondary 26%）；
@@ -213,14 +223,14 @@ class _StatusPanelState extends State<StatusPanel> {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  // 与收起态同一套：主题色淡底，不用红蓝渐变
-                  color: scheme.primary.withOpacity(0.16),
+                  // 与收起态同一套：点缀色淡底，不用红蓝渐变
+                  color: accent.withOpacity(0.16),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   Icons.auto_awesome_rounded,
                   size: 16,
-                  color: scheme.primary,
+                  color: accent,
                 ),
               ),
               const SizedBox(width: 10),
@@ -230,14 +240,14 @@ class _StatusPanelState extends State<StatusPanel> {
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
-                  color: GlassPalette.inkOf(brightness),
+                  color: accent,
                 ),
               ),
               const SizedBox(width: 10),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                 decoration: BoxDecoration(
-                  color: scheme.primary.withOpacity(isDark ? 0.20 : 0.12),
+                  color: accent.withOpacity(isDark ? 0.22 : 0.14),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
@@ -245,7 +255,7 @@ class _StatusPanelState extends State<StatusPanel> {
                   style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : scheme.primary,
+                    color: accent,
                   ),
                 ),
               ),
