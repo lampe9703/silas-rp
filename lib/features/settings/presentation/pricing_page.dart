@@ -5,6 +5,7 @@ import '../../../app_providers.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../domain/settings_models.dart';
+import 'model_picker_sheet.dart';
 
 class PricingPage extends ConsumerStatefulWidget {
   const PricingPage({super.key});
@@ -139,9 +140,21 @@ class _PricingPageState extends ConsumerState<PricingPage> {
               children: [
                 TextField(
                   controller: patternController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: '模型匹配',
                     hintText: 'gpt-4o*',
+                    helperText: '支持通配符，如 deepseek-*',
+                    suffixIcon: IconButton(
+                      tooltip: '从已保存的配置选择',
+                      icon: const Icon(Icons.list_alt_rounded, size: 20),
+                      onPressed: () async {
+                        final picked =
+                            await pickModelFromConfigs(dialogContext, ref);
+                        if (picked == null || !dialogContext.mounted) return;
+                        patternController.text = picked;
+                        setDialogState(() {});
+                      },
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),

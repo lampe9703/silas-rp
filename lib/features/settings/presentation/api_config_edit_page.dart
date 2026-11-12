@@ -7,6 +7,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../data/settings_repository.dart';
 import '../domain/settings_models.dart';
+import 'model_picker_sheet.dart';
 import 'settings_page.dart';
 
 class ApiConfigEditPage extends ConsumerStatefulWidget {
@@ -108,7 +109,7 @@ class _ApiConfigEditPageState extends ConsumerState<ApiConfigEditPage> {
         context: context,
         isScrollControlled: true,
         showDragHandle: true,
-        builder: (_) => _ModelPickerSheet(models: models),
+        builder: (_) => ModelPickerSheet(models: models),
       );
       if (picked != null && mounted) {
         setState(() => _model.text = picked);
@@ -303,105 +304,4 @@ class _ApiConfigEditPageState extends ConsumerState<ApiConfigEditPage> {
           style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500),
         ),
       );
-}
-
-/// 模型列表选择器：带搜索框，点一行就回填模型名
-class _ModelPickerSheet extends StatefulWidget {
-  const _ModelPickerSheet({required this.models});
-
-  final List<String> models;
-
-  @override
-  State<_ModelPickerSheet> createState() => _ModelPickerSheetState();
-}
-
-class _ModelPickerSheetState extends State<_ModelPickerSheet> {
-  final TextEditingController _search = TextEditingController();
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final keyword = _search.text.trim().toLowerCase();
-    final list = widget.models
-        .where((m) => keyword.isEmpty || m.toLowerCase().contains(keyword))
-        .toList();
-
-    return SizedBox(
-      height: MediaQuery.of(context).size.height * 0.62,
-      child: Column(
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    '选择模型（${widget.models.length} 个）',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
-              controller: _search,
-              onChanged: (_) => setState(() {}),
-              style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: '搜索模型名，如 claude / gpt / gemini',
-                prefixIcon: const Icon(Icons.search_rounded, size: 18),
-                suffixIcon: _search.text.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.close_rounded, size: 16),
-                        onPressed: () => setState(_search.clear),
-                      ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: list.isEmpty
-                ? Center(
-                    child: Text(
-                      '没有匹配的模型',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: list.length,
-                    itemBuilder: (context, i) {
-                      final id = list[i];
-                      return ListTile(
-                        dense: true,
-                        title: Text(id, style: const TextStyle(fontSize: 13.5)),
-                        trailing: const Icon(
-                          Icons.chevron_right_rounded,
-                          size: 18,
-                        ),
-                        onTap: () => Navigator.of(context).pop(id),
-                      );
-                    },
-                  ),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
 }
