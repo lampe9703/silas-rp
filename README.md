@@ -8,6 +8,23 @@
 
 <p><em>做自己想用的那个客户端</em></p>
 
+<p>
+  <img alt="License" src="https://img.shields.io/badge/License-GPLv3-blue.svg" />
+  <img alt="Flutter" src="https://img.shields.io/badge/Flutter-3.22+-02569B?logo=flutter&amp;logoColor=white" />
+  <img alt="Android" src="https://img.shields.io/badge/Android-6.0+-3DDC84?logo=android&amp;logoColor=white" />
+  <img alt="Network" src="https://img.shields.io/badge/Network-Only%20your%20API-orange" />
+  <img alt="Account" src="https://img.shields.io/badge/Account-None-brightgreen" />
+</p>
+
+<p>
+  <a href="README.en.md">English</a> ·
+  <a href="#-功能">功能</a> ·
+  <a href="#-安装">安装</a> ·
+  <a href="#-构建">构建</a> ·
+  <a href="#-许可">许可</a> ·
+  <a href="#-免责声明">免责声明</a>
+</p>
+
 </div>
 
 ---
@@ -40,7 +57,7 @@ Silas RP 是个**个人项目**：没有团队、没有 KPI，也不商业化。
 
 ## 🛠 构建
 
-需要 Flutter SDK ≥ 3.16、Android SDK、JDK 17。
+需要 Flutter SDK ≥ 3.22（Dart ≥ 3.4）、Android SDK、JDK 17。
 
 ```bash
 git clone https://github.com/lampe9703/silas-rp.git
