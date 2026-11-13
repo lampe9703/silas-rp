@@ -22,6 +22,7 @@
   <a href="#install">Install</a> ·
   <a href="#build">Build</a> ·
   <a href="#license">License</a> ·
+  <a href="#support">Support</a> ·
   <a href="#disclaimer">Disclaimer</a>
 </p>
 
@@ -97,8 +98,16 @@ The app ships no character cards, world books or story content; imported cards b
 
 ---
 
+## 💛 Support
+
 If this app made a dull night slightly better:
 
-⭐ star it on [GitHub](https://github.com/lampe9703/silas-rp) · ☕ buy me a coffee on [Afdian](https://afdian.com/a/lampe9703)
+- ⭐ star it on [GitHub](https://github.com/lampe9703/silas-rp)
+- ☕ buy me a coffee on [Afdian](https://afdian.com/a/lampe9703)
+- 📣 or just mention it to your friends — pass it on to whoever is also looking for a decent roleplay client on their phone
+
+The last one helps the most: one more person finding it is worth more than a coffee.
+
+---
 
 Made with ⌨️ by lampe

@@ -22,6 +22,7 @@
   <a href="#-安装">安装</a> ·
   <a href="#-构建">构建</a> ·
   <a href="#-许可">许可</a> ·
+  <a href="#-支持作者">支持作者</a> ·
   <a href="#-免责声明">免责声明</a>
 </p>
 
@@ -97,8 +98,16 @@ flutter build apk --release --target-platform android-arm64
 
 ---
 
+## 💛 支持作者
+
 如果这个软件在某个无聊的夜晚给了你一点点慰藉：
 
-⭐ 在 [GitHub](https://github.com/lampe9703/silas-rp) 点一颗星 · ☕ 在 [爱发电](https://afdian.com/a/lampe9703) 请我喝杯咖啡
+- ⭐ 在 [GitHub](https://github.com/lampe9703/silas-rp) 点一颗星
+- ☕ 在 [爱发电](https://afdian.com/a/lampe9703) 请我喝杯咖啡
+- 📣 或者在你的朋友圈子里帮我宣传一下——把它转给那个同样在找手机端角色扮演客户端的人
+
+三条里最管用的其实是最后一条：一个人因此找到它，比一杯咖啡值钱得多。
+
+---
 
 Made with ⌨️ by lampe
