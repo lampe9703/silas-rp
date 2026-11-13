@@ -75,7 +75,7 @@ flutter build apk --release --target-platform android-arm64
 
 技术栈：Flutter + Riverpod（状态）· SQLite（本地库，含版本迁移）· Dio（流式请求）· file_picker（导入导出）。
 
-## ⚖️ 许可
+## 📜 许可
 
 [GNU General Public License v3.0](LICENSE) · Copyright (C) 2025 lampe9703
 
