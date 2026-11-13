@@ -104,7 +104,7 @@ flutter build apk --release --target-platform android-arm64
 
 - ⭐ 在 [GitHub](https://github.com/lampe9703/silas-rp) 点一颗星
 - ☕ 在 [爱发电](https://afdian.com/a/lampe9703) 请我喝杯咖啡
-- 📣 或者在你的朋友圈子里帮我宣传一下——把它转给那个同样在找手机端角色扮演客户端的人
+- 📣 在你的朋友圈子里帮我宣传一下——把它转给那个同样在找手机端角色扮演客户端的人
 
 三条里最管用的其实是最后一条：一个人因此找到它，比一杯咖啡值钱得多。
 
