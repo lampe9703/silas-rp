@@ -104,7 +104,7 @@ If this app made a dull night slightly better:
 
 - ⭐ star it on [GitHub](https://github.com/lampe9703/silas-rp)
 - ☕ buy me a coffee on [Afdian](https://afdian.com/a/lampe9703)
-- 📣 or just mention it to your friends — pass it on to whoever is also looking for a decent roleplay client on their phone
+- 📣 Please help me promote this within your circle of friends—forward it to those who are also looking for a mobile role-playing client.
 
 The last one helps the most: one more person finding it is worth more than a coffee.
 
