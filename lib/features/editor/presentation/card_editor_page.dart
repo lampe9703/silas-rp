@@ -1908,7 +1908,7 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
                       onChanged: (_) => _scheduleDraftSave(),
                       decoration: _worldFieldDecoration(
                         brightness,
-                        hint: '关键词，半角逗号分隔，如：疲劳, 伤害',
+                        hint: '关键词，逗号分隔（中英文都行），如：疲劳, 伤害',
                       ),
                     ),
                     const SizedBox(height: 6),

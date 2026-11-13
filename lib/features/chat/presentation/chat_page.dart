@@ -707,12 +707,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   ) async {
     switch (value) {
       case 'new':
-        final result = controller.newSession();
-        if (result == NewSessionResult.switched) {
-          showToast(context, '已经有一个还没开始的会话，已为你切过去');
-        } else if (result == NewSessionResult.alreadyEmpty) {
-          showToast(context, '当前就是那个还没开始的会话');
-        }
+        controller.newSession();
         break;
       case 'greeting':
         await _showGreetings(state, controller);
@@ -1224,15 +1219,8 @@ class _SessionsSheetState extends ConsumerState<_SessionsSheet> {
               leading: const Icon(Icons.add_comment_outlined),
               title: const Text('新建会话'),
               onTap: () {
-                final result = widget.controller.newSession();
-                if (result == NewSessionResult.alreadyEmpty) {
-                  showToast(context, '当前就是那个还没开始的会话');
-                  return;
-                }
+                widget.controller.newSession();
                 Navigator.of(context).pop();
-                if (result == NewSessionResult.switched) {
-                  showToast(context, '已切换到还没开始的会话');
-                }
               },
             ),
             const Divider(height: 1),
