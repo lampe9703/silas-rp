@@ -6,6 +6,7 @@ import 'core/security/secure_key_store.dart';
 import 'features/characters/data/avatar_storage.dart';
 import 'features/characters/data/card_generation_dao.dart';
 import 'features/characters/data/character_dao.dart';
+import 'features/chat/data/session_tag_dao.dart';
 import 'features/characters/data/world_snippet_dao.dart';
 import 'features/characters/data/character_repository.dart';
 import 'features/chat/data/message_dao.dart';
@@ -38,6 +39,10 @@ final sessionDaoProvider =
 
 final messageDaoProvider =
     Provider<MessageDao>((ref) => MessageDao(ref.watch(databaseProvider)));
+
+final sessionTagDaoProvider = Provider<SessionTagDao>(
+  (ref) => SessionTagDao(ref.watch(databaseProvider)),
+);
 
 final worldSnippetDaoProvider = Provider<WorldSnippetDao>(
   (ref) => WorldSnippetDao(ref.watch(databaseProvider)),

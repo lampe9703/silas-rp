@@ -4,7 +4,7 @@
 /// 所有时间字段为毫秒时间戳（INTEGER），所有金额为「微单位」（INTEGER）。
 library;
 
-const int kSchemaVersion = 12;
+const int kSchemaVersion = 13;
 
 /// v1 建表语句。按依赖顺序排列（被引用的表在前）。
 const List<String> kSchemaV1 = <String>[
@@ -233,6 +233,34 @@ const List<String> kSchemaV3 = <String>[
 /// v4：简介独立成列（人设正文不再兼任列表简介）
 const List<String> kSchemaV4 = <String>[
   "ALTER TABLE character_cards ADD COLUMN summary TEXT NOT NULL DEFAULT ''",
+];
+
+/// v13：会话标签。
+///
+/// 两张表而不是在 chat_sessions 上塞逗号串：
+/// * session_tags 是「标签库」，跨会话复用，带使用次数（排序用）
+/// * session_tag_links 是「谁贴了哪个标签」，会话删除时随外键级联
+///
+/// 这样改标签名只改一处，按标签筛选也只是一次 JOIN。
+const List<String> kSchemaV13 = <String>[
+  '''
+CREATE TABLE session_tags (
+  id         TEXT    PRIMARY KEY,
+  name       TEXT    NOT NULL UNIQUE,
+  use_count  INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+)
+''',
+  '''
+CREATE TABLE session_tag_links (
+  session_id TEXT    NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+  tag_id     TEXT    NOT NULL REFERENCES session_tags(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (session_id, tag_id)
+)
+''',
+  'CREATE INDEX idx_session_tag_links_tag ON session_tag_links(tag_id)',
 ];
 
 /// v12：把每轮的本地审校结果存下来。

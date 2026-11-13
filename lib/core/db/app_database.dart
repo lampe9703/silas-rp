@@ -129,6 +129,11 @@ class AppDatabase {
           db.execute(stmt);
         }
       }
+      if (current < 13) {
+        for (final stmt in kSchemaV13) {
+          db.execute(stmt);
+        }
+      }
       if (current < 12) {
         for (final stmt in kSchemaV12) {
           db.execute(stmt);

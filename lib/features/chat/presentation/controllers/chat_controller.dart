@@ -20,6 +20,21 @@ import '../../data/message_dao.dart';
 import '../../data/session_dao.dart';
 import '../../domain/chat_models.dart';
 
+/// 新建会话的结果。
+enum NewSessionResult {
+  /// 真的新建了一个会话
+  created,
+
+  /// 已有空会话，切过去了
+  switched,
+
+  /// 当前就在那个空会话上，什么都没做
+  alreadyEmpty,
+
+  /// 没有角色卡，无法操作
+  failed,
+}
+
 class ChatState {
   const ChatState({
     this.card,
@@ -163,9 +178,28 @@ class ChatController extends FamilyNotifier<ChatState, String> {
 
   // ───────────────────────────── 会话管理 ─────────────────────────────
 
-  void newSession() {
+  /// 新建会话。
+  ///
+  /// 已经存在「还没开始」的会话时**不再新建**，直接切过去 ——
+  /// 否则会出现两个空会话并排，玩家分不清哪个是刚开的。
+  ///
+  /// 返回新建结果，供 UI 决定提示什么。
+  NewSessionResult newSession() {
     final card = state.card;
-    if (card == null) return;
+    if (card == null) return NewSessionResult.failed;
+
+    // sessions 按 COALESCE(last_message_at, created_at) 倒序，
+    // 所以 first 就是最新的那个空会话。
+    final empties =
+        state.sessions.where((s) => s.messageCount == 0).toList();
+    if (empties.isNotEmpty) {
+      final target = empties.first;
+      if (target.id == state.session?.id) {
+        return NewSessionResult.alreadyEmpty;
+      }
+      switchSession(target.id);
+      return NewSessionResult.switched;
+    }
     // 新会话沿用「你此刻正在聊的这个会话」用的开场白：
     // 作者写了多段备选开场白时，「再开一个」通常是拿同一段重新开始，
     // 而不是每次都被拽回第一段。
@@ -185,6 +219,7 @@ class ChatController extends FamilyNotifier<ChatState, String> {
       hasMoreHistory: messages.length >= pageSize,
       clearError: true,
     );
+    return NewSessionResult.created;
   }
 
   void switchSession(String sessionId) {

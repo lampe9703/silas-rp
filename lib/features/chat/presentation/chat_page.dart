@@ -12,9 +12,11 @@ import '../../../core/utils/time_utils.dart';
 import '../../../shared/widgets/app_widgets.dart';
 import '../data/chat_export_service.dart';
 import '../domain/chat_models.dart';
+import '../domain/session_tag.dart';
 import 'controllers/chat_controller.dart';
 import 'widgets/chat_input_bar.dart';
 import 'widgets/message_bubble.dart';
+import 'widgets/session_tag_picker.dart';
 import 'widgets/model_picker_sheet.dart';
 import 'widgets/status_panel.dart';
 import '../../characters/domain/character_card.dart';
@@ -705,7 +707,12 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   ) async {
     switch (value) {
       case 'new':
-        controller.newSession();
+        final result = controller.newSession();
+        if (result == NewSessionResult.switched) {
+          showToast(context, '已经有一个还没开始的会话，已为你切过去');
+        } else if (result == NewSessionResult.alreadyEmpty) {
+          showToast(context, '当前就是那个还没开始的会话');
+        }
         break;
       case 'greeting':
         await _showGreetings(state, controller);
@@ -1028,20 +1035,75 @@ class _CoverBackdrop extends StatelessWidget {
   }
 }
 
-/// 会话记录面板：普通态点选切换，管理态多选批量删除
-class _SessionsSheet extends StatefulWidget {
+/// 会话记录面板：普通态点选切换；管理态多选（全选/反选）、打标签、批量删除。
+class _SessionsSheet extends ConsumerStatefulWidget {
   const _SessionsSheet({required this.state, required this.controller});
 
   final ChatState state;
   final ChatController controller;
 
   @override
-  State<_SessionsSheet> createState() => _SessionsSheetState();
+  ConsumerState<_SessionsSheet> createState() => _SessionsSheetState();
 }
 
-class _SessionsSheetState extends State<_SessionsSheet> {
+class _SessionsSheetState extends ConsumerState<_SessionsSheet> {
   bool _managing = false;
   final Set<String> _selected = <String>{};
+
+  /// 会话 id -> 标签。列表渲染用，改完标签后重读一次。
+  Map<String, List<SessionTag>> _tags = const <String, List<SessionTag>>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _reloadTags();
+  }
+
+  List<ChatSession> get _sessions => widget.state.sessions;
+
+  void _reloadTags() {
+    final ids = _sessions.map((s) => s.id).toList();
+    final map = ref.read(sessionTagDaoProvider).bySessions(ids);
+    if (!mounted) return;
+    setState(() => _tags = map);
+  }
+
+  void _toggleManage() {
+    setState(() {
+      _managing = !_managing;
+      _selected.clear();
+    });
+  }
+
+  void _selectAll() {
+    setState(() {
+      _selected
+        ..clear()
+        ..addAll(_sessions.map((s) => s.id));
+    });
+  }
+
+  void _invertSelection() {
+    setState(() {
+      final next = <String>{
+        for (final s in _sessions)
+          if (!_selected.contains(s.id)) s.id,
+      };
+      _selected
+        ..clear()
+        ..addAll(next);
+    });
+  }
+
+  void _toggleOne(String id) {
+    setState(() {
+      if (_selected.contains(id)) {
+        _selected.remove(id);
+      } else {
+        _selected.add(id);
+      }
+    });
+  }
 
   Future<void> _deleteSelected() async {
     if (_selected.isEmpty) return;
@@ -1052,16 +1114,53 @@ class _SessionsSheetState extends State<_SessionsSheet> {
       confirmText: '删除',
       danger: true,
     );
-    if (!ok) return;
+    if (ok != true) return;
     final ids = _selected.toList();
     if (mounted) Navigator.of(context).pop();
     widget.controller.deleteSessions(ids);
   }
 
+  Future<void> _tagSelected() async {
+    if (_selected.isEmpty) return;
+    final picked = await showSessionTagPicker(
+      context,
+      sessionCount: _selected.length,
+    );
+    if (picked == null || picked.isEmpty || !mounted) return;
+    ref.read(sessionTagDaoProvider).attachMany(_selected.toList(), picked);
+    _reloadTags();
+    if (mounted) {
+      showToast(
+        context,
+        '已给 ${_selected.length} 个会话加上 ${picked.length} 个标签',
+      );
+    }
+  }
+
+  /// 标签胶囊。高度写死 16，和有/无标签的行保持同一行高。
+  Widget _tagChip(SessionTag tag) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      height: 16,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: scheme.primary.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        tag.name,
+        style: TextStyle(fontSize: 10, height: 1, color: scheme.primary),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final sessions = widget.state.sessions;
+    final brightness = Theme.of(context).brightness;
+    final faint = GlassPalette.inkFaintOf(brightness);
+    final sessions = _sessions;
 
     return SafeArea(
       child: Column(
@@ -1076,35 +1175,64 @@ class _SessionsSheetState extends State<_SessionsSheet> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: GlassPalette.inkOf(Theme.of(context).brightness),
+                    color: GlassPalette.inkOf(brightness),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   '${sessions.length} 个',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: GlassPalette.inkFaintOf(Theme.of(context).brightness),
-                  ),
+                  style: TextStyle(fontSize: 11.5, color: faint),
                 ),
                 const Spacer(),
                 TextButton(
-                  onPressed: () => setState(() {
-                    _managing = !_managing;
-                    _selected.clear();
-                  }),
+                  onPressed: _toggleManage,
                   child: Text(_managing ? '完成' : '管理'),
                 ),
               ],
             ),
           ),
+          // 管理态：全选 / 反选 / 已选数量
+          if (_managing)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 12, 4),
+              child: Row(
+                children: <Widget>[
+                  TextButton(
+                    onPressed: sessions.isEmpty ? null : _selectAll,
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text('全选', style: TextStyle(fontSize: 13)),
+                  ),
+                  TextButton(
+                    onPressed: sessions.isEmpty ? null : _invertSelection,
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text('反选', style: TextStyle(fontSize: 13)),
+                  ),
+                  const Spacer(),
+                  Text(
+                    _selected.isEmpty ? '未选择' : '已选 ${_selected.length}',
+                    style: TextStyle(fontSize: 11.5, color: faint),
+                  ),
+                ],
+              ),
+            ),
           if (!_managing) ...<Widget>[
             ListTile(
               leading: const Icon(Icons.add_comment_outlined),
               title: const Text('新建会话'),
               onTap: () {
+                final result = widget.controller.newSession();
+                if (result == NewSessionResult.alreadyEmpty) {
+                  showToast(context, '当前就是那个还没开始的会话');
+                  return;
+                }
                 Navigator.of(context).pop();
-                widget.controller.newSession();
+                if (result == NewSessionResult.switched) {
+                  showToast(context, '已切换到还没开始的会话');
+                }
               },
             ),
             const Divider(height: 1),
@@ -1116,17 +1244,12 @@ class _SessionsSheetState extends State<_SessionsSheet> {
               children: sessions.map((session) {
                 final active = session.id == widget.state.session?.id;
                 final checked = _selected.contains(session.id);
+                final tags = _tags[session.id] ?? const <SessionTag>[];
                 return ListTile(
                   leading: _managing
                       ? Checkbox(
                           value: checked,
-                          onChanged: (_) => setState(() {
-                            if (checked) {
-                              _selected.remove(session.id);
-                            } else {
-                              _selected.add(session.id);
-                            }
-                          }),
+                          onChanged: (_) => _toggleOne(session.id),
                         )
                       : Icon(
                           active
@@ -1141,28 +1264,52 @@ class _SessionsSheetState extends State<_SessionsSheet> {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 14),
                   ),
-                  subtitle: Text(
-                    '${session.messageCount} 条 · '
-                    '${session.lastMessageAt == null ? '尚无消息' : formatRelative(session.lastMessageAt!)}',
-                    style: const TextStyle(fontSize: 11.5),
+                  // 副标题固定一行：标签跟在日期后面。
+                  // 高度写死，有没有标签的行一样高，列表不会忽高忽低。
+                  subtitle: SizedBox(
+                    height: 18,
+                    child: Row(
+                      children: <Widget>[
+                        Text(
+                          '${session.messageCount} 条 · '
+                          '${session.lastMessageAt == null ? '尚无消息' : formatRelative(session.lastMessageAt!)}',
+                          style: const TextStyle(fontSize: 11.5),
+                        ),
+                        if (tags.isNotEmpty) ...<Widget>[
+                          const SizedBox(width: 8),
+                          // 标签多了横向滚动，不换行、不撑高
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: <Widget>[
+                                  for (final tag in tags)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 4),
+                                      child: _tagChip(tag),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                   trailing: _managing
                       ? null
                       : IconButton(
-                          icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 18,
+                          ),
                           onPressed: () {
                             Navigator.of(context).pop();
                             widget.controller.deleteSession(session.id);
                           },
                         ),
                   onTap: _managing
-                      ? () => setState(() {
-                            if (checked) {
-                              _selected.remove(session.id);
-                            } else {
-                              _selected.add(session.id);
-                            }
-                          })
+                      ? () => _toggleOne(session.id)
                       : () {
                           Navigator.of(context).pop();
                           widget.controller.switchSession(session.id);
@@ -1174,16 +1321,35 @@ class _SessionsSheetState extends State<_SessionsSheet> {
           if (_managing)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: FilledButton.icon(
-                onPressed: _selected.isEmpty ? null : _deleteSelected,
-                icon: const Icon(Icons.delete_sweep_rounded, size: 18),
-                label: Text(
-                  _selected.isEmpty ? '选择要删除的会话' : '删除所选（${_selected.length}）',
-                ),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(44),
-                  backgroundColor: scheme.error,
-                ),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _selected.isEmpty ? null : _tagSelected,
+                      icon: const Icon(Icons.label_outline_rounded, size: 18),
+                      label: const Text('打标签'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(44),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _selected.isEmpty ? null : _deleteSelected,
+                      icon: const Icon(Icons.delete_sweep_rounded, size: 18),
+                      label: Text(
+                        _selected.isEmpty
+                            ? '删除所选'
+                            : '删除所选（${_selected.length}）',
+                      ),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(44),
+                        backgroundColor: scheme.error,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           const SizedBox(height: 8),
