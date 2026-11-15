@@ -122,7 +122,7 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
   }
 
   void setContextLimit(int value) =>
-      _persist(state.copyWith(contextLimit: value.clamp(512, 32768)));
+      _persist(state.copyWith(contextLimit: value.clamp(512, 200000)));
 
   void setTemperature(double value) =>
       _persist(state.copyWith(temperature: value.clamp(0, 2)));

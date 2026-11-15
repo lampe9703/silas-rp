@@ -228,7 +228,7 @@ class AppSettings {
     this.themeSpot = '',
     this.navOrder = const <String>['characters', 'stats', 'editor', 'settings'],
     this.defaultApiConfigId,
-    this.contextLimit = 4096,
+    this.contextLimit = 16384,
     this.temperature = 0.9,
     this.topP = 1.0,
     this.streamEnabled = true,
@@ -255,6 +255,9 @@ class AppSettings {
 
   final List<String> navOrder;
   final String? defaultApiConfigId;
+  /// 上下文上限（token）。默认 16384 而不是 4096：
+  /// 重度卡的 system（人设 + 世界书 + 状态规则 + 提示词）就要 5~7k，
+  /// 4096 连 system 都装不下，历史预算直接是负数。
   final int contextLimit;
   final double temperature;
   final double topP;

@@ -83,15 +83,9 @@ Future<void> showCardGenerationSheet(
                   display: temperature.toStringAsFixed(2),
                   onChanged: (v) => setSheetState(() => temperature = v),
                 ),
-                _SliderRow(
-                  label: '上下文上限',
-                  value: contextLimit.toDouble(),
-                  min: 1024,
-                  max: 32768,
-                  divisions: 31,
-                  display: '$contextLimit tokens',
-                  onChanged: (v) =>
-                      setSheetState(() => contextLimit = v.round()),
+                _ContextLimitRow(
+                  value: contextLimit,
+                  onChanged: (v) => setSheetState(() => contextLimit = v),
                 ),
                 _SliderRow(
                   label: '单次回复上限',
@@ -105,7 +99,9 @@ Future<void> showCardGenerationSheet(
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '优先级：这张卡 > API 配置（温度）> 内置默认。上下文越长费用越高。',
+                  '优先级：这张卡 > API 配置（温度）> 内置默认。'
+                  '每轮都会把全部历史重发一次，所以上限就是每轮的成本；'
+                  '一般 32k 够用，长线存档再往上调。',
                   style: TextStyle(fontSize: 11.5, height: 1.5, color: muted),
                 ),
                 const SizedBox(height: 6),
@@ -156,6 +152,86 @@ Future<void> showCardGenerationSheet(
       },
     ),
   );
+}
+
+/// 上下文上限：按档位走，不用连续滑杆。
+///
+/// 0~200000 的连续滑杆有两个毛病：拖一下跳 6000 token（根本对不准），
+/// 而且 65537 这种值没有任何意义。这里给一组人真正会选的档位。
+class _ContextLimitRow extends StatelessWidget {
+  const _ContextLimitRow({required this.value, required this.onChanged});
+
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  /// 档位表。1k 起，翻倍为主，中间补几档常用的。
+  static const List<int> steps = <int>[
+    1024, 2048, 4096, 8192, 12288, 16384, 24576,
+    32768, 49152, 65536, 98304, 131072, 163840, 200000,
+  ];
+
+  /// 32768 显示成 32k 而不是 33k：档位都是 1024 的整数倍，
+  /// 按 1000 折算会得到「33k」这种看着像错的值。
+  static String _fmt(int v) {
+    if (v >= 1024 && v % 1024 == 0) return '${v ~/ 1024}k tokens';
+    if (v >= 1000) return '${(v / 1000).round()}k tokens';
+    return '$v tokens';
+  }
+
+  /// 库里可能存着不在表里的老值，取不超过它的最大档位
+  int get _index {
+    final exact = steps.indexOf(value);
+    if (exact >= 0) return exact;
+    var best = 0;
+    for (var i = 0; i < steps.length; i++) {
+      if (steps[i] <= value) best = i;
+    }
+    return best;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final muted = scheme.onSurfaceVariant;
+    final index = _index;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            const Text('上下文上限', style: TextStyle(fontSize: 13)),
+            Text(
+              _fmt(steps[index]),
+              style: TextStyle(fontSize: 12, color: scheme.primary),
+            ),
+          ],
+        ),
+        Slider(
+          value: index.toDouble(),
+          min: 0,
+          max: (steps.length - 1).toDouble(),
+          divisions: steps.length - 1,
+          label: _fmt(steps[index]),
+          onChanged: (v) => onChanged(steps[v.round()]),
+        ),
+        // 刻度提示：让人知道滑到哪儿大概是什么量级
+        Padding(
+          padding: const EdgeInsets.only(left: 4, right: 4, bottom: 2),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Text('1k', style: TextStyle(fontSize: 10, color: muted)),
+              Text('16k', style: TextStyle(fontSize: 10, color: muted)),
+              Text('64k', style: TextStyle(fontSize: 10, color: muted)),
+              Text('200k', style: TextStyle(fontSize: 10, color: muted)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _SliderRow extends StatelessWidget {
