@@ -38,10 +38,11 @@ Silas RP is a **personal project**: no team, no KPIs, not commercial. The reason
 
 |  |  |
 |:--|:--|
-| 🎴 **Character cards** | Imports Tavern V1/V2/V3 (PNG or JSON), and cards exported by Huanmeng. Basic mode gets you chatting after a few fields; advanced mode edits the raw persona text. Exported PNGs embed the card data, so other clients can read them back. |
+| 🎴 **Character cards** | Imports Tavern V1/V2/V3 (PNG or JSON). Basic mode gets you chatting after a few fields; advanced mode edits the raw persona text. Exported PNGs embed the card data, so other clients can read them back. |
 | 📖 **World book** | Constant and keyword entries. Keywords are substring matches, scanned across the last 8 messages, your input **and the status bar values** — so state IDs like `P3` or `X2` work as keywords. YAML leftovers are stripped before injection, and entries driven by state IDs are moved to the end of the prompt so they outrank generic style rules. |
-| 🧩 **Status bar** | JSON or `key: value` blocks; the memory string (`P3-C1-S1-T3-X2`) advances with the story. The panel stays put instead of silently vanishing, and a tap anywhere in the message area collapses it. |
+| 🧩 **Status bar** | JSON or `key: value` blocks; the memory string advances with the story. The panel stays put instead of silently vanishing, and a tap anywhere in the message area collapses it. |
 | 🎛 **Per-card generation settings** | Perspective, temperature, context limit and reply cap are stored per card. Long-press a cover in the library to adjust them; they travel with the card when exported. |
+| 🔞 **Adult mode** | Off by default. To turn it on: Settings → About → tap the app name seven times, then go back to Settings → 提示词 and switch on 允许成人向描写. It appends explicit-writing instructions and restates a continuation contract at the very end of the prompt — models tend to drift back toward safe phrasing as a reply winds down, and that block is what holds the line. Switching it off hides the option again until you unlock it once more. All characters are treated as adults. |
 | 🔀 **Switch models mid-chat** | Configure several OpenAI-compatible endpoints (local models included). Tap the button left of the input box to switch; every reply shows which model produced it. |
 | 🔍 **View reasoning** | For models returning `reasoning_content` (DeepSeek-R1, GLM-Z1, Qwen3 …) you can read what it was thinking. Stored in its own column — **never fed back into context**. |
 | 🧾 **Pricing & usage** | Set a price per model name (wildcards like `deepseek-*` work); the stats page turns tokens into money. |
