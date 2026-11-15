@@ -128,6 +128,7 @@ class ChatMessage {
     this.content = '',
     this.reasoning = '',
     this.auditJson = '',
+    this.statusSnapshot = '',
     this.status = MessageStatus.done,
     this.variantGroup,
     this.variantIndex = 0,
@@ -157,6 +158,13 @@ class ChatMessage {
 
   /// 本地审校结果的 JSON。空串 = 这条消息还没审校过（旧版本消息）。
   final String auditJson;
+
+  /// 这一轮结束后状态栏的快照（JSON 对象）。
+  ///
+  /// 状态块入库前就被剥离了，正文里查不到；会话上的 status_state 只有最终值。
+  /// 要还原「每一轮的状态栏」只能在这里留一份。空串 = 这条消息没产生状态
+  /// （用户消息、出错消息、或升级前的老消息）。
+  final String statusSnapshot;
   final MessageStatus status;
   final String? variantGroup;
   final int variantIndex;
@@ -183,6 +191,7 @@ class ChatMessage {
         content: (row['content'] as String?) ?? '',
         reasoning: (row['reasoning'] as String?) ?? '',
         auditJson: (row['audit'] as String?) ?? '',
+        statusSnapshot: (row['status_snapshot'] as String?) ?? '',
         status: MessageStatusX.parse(row['status'] as String?),
         variantGroup: row['variant_group'] as String?,
         variantIndex: (row['variant_index'] as int?) ?? 0,
@@ -209,6 +218,7 @@ class ChatMessage {
         'variant_index': variantIndex,
         'is_active_variant': isActiveVariant ? 1 : 0,
         'excluded_from_context': excludedFromContext ? 1 : 0,
+        'status_snapshot': statusSnapshot,
         'token_count': tokenCount,
         'model': model,
         'api_config_id': apiConfigId,
@@ -222,10 +232,25 @@ class ChatMessage {
   /// 解析后的审校报告；没审校过返回 null。
   AuditReport? get audit => AuditReport.fromJsonString(auditJson);
 
+  /// 解析后的状态栏快照；没有快照返回 null。
+  Map<String, dynamic>? get statusValues {
+    if (statusSnapshot.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(statusSnapshot);
+      if (decoded is! Map) return null;
+      return <String, dynamic>{
+        for (final e in decoded.entries) e.key.toString(): e.value,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
   ChatMessage copyWith({
     String? content,
     String? reasoning,
     String? auditJson,
+    String? statusSnapshot,
     MessageStatus? status,
     bool? isActiveVariant,
     bool? excludedFromContext,
@@ -245,6 +270,7 @@ class ChatMessage {
         content: content ?? this.content,
       reasoning: reasoning ?? this.reasoning,
       auditJson: auditJson ?? this.auditJson,
+      statusSnapshot: statusSnapshot ?? this.statusSnapshot,
         status: status ?? this.status,
         variantGroup: variantGroup,
         variantIndex: variantIndex,

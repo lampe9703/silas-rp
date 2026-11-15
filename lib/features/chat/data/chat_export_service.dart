@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../../shared/widgets/app_widgets.dart';
+import '../../../core/prompt/status_parser.dart';
 import '../../characters/domain/character_card.dart';
 import '../domain/chat_models.dart';
 
@@ -120,6 +121,19 @@ String buildSessionMarkdown({
       buffer.writeln();
     }
 
+    // 这一轮的状态栏。状态块在入库前就从正文里剥掉了，只有快照里还留着；
+    // 升级前的老消息没有快照，这里静默跳过。
+    final status = m.statusValues;
+    if (status != null && status.isNotEmpty) {
+      buffer.writeln('> **状态栏**');
+      for (final entry in status.entries) {
+        buffer.writeln(
+          '> ${entry.key}：${StatusParser.displayValue(entry.value)}',
+        );
+      }
+      buffer.writeln();
+    }
+
     if (includeReasoning && m.reasoning.trim().isNotEmpty) {
       buffer.writeln('> **思考过程**');
       for (final line in m.reasoning.trim().split('\n')) {
@@ -169,6 +183,8 @@ String buildSessionJson({
           if (m.tokenCount != null) 'token_count': m.tokenCount,
           if (m.latencyMs != null) 'latency_ms': m.latencyMs,
           if ((m.errorMessage ?? '').isNotEmpty) 'error_message': m.errorMessage,
+          // 键名不能叫 status：那是消息生命周期（done / error / cancelled）
+          if (m.statusValues != null) 'status_bar': m.statusValues,
           if (includeReasoning && m.reasoning.trim().isNotEmpty)
             'reasoning': m.reasoning,
         },

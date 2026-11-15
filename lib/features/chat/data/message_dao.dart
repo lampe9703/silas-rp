@@ -115,11 +115,14 @@ INSERT INTO messages (
     String? finishReason,
     int? latencyMs,
     String? errorMessage,
+    String? statusSnapshot,
   }) {
     _db.execute(
       'UPDATE messages SET content = ?, status = ?, token_count = ?, '
       'finish_reason = ?, latency_ms = ?, error_message = ?, '
-      'reasoning = COALESCE(?, reasoning), updated_at = ? WHERE id = ?',
+      'reasoning = COALESCE(?, reasoning), '
+      'status_snapshot = COALESCE(?, status_snapshot), updated_at = ? '
+      'WHERE id = ?',
       [
         content,
         status.name,
@@ -128,6 +131,7 @@ INSERT INTO messages (
         latencyMs,
         errorMessage,
         reasoning,
+        statusSnapshot,
         nowMs(),
         messageId,
       ],

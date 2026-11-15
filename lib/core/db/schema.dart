@@ -4,7 +4,7 @@
 /// 所有时间字段为毫秒时间戳（INTEGER），所有金额为「微单位」（INTEGER）。
 library;
 
-const int kSchemaVersion = 13;
+const int kSchemaVersion = 14;
 
 /// v1 建表语句。按依赖顺序排列（被引用的表在前）。
 const List<String> kSchemaV1 = <String>[
@@ -233,6 +233,18 @@ const List<String> kSchemaV3 = <String>[
 /// v4：简介独立成列（人设正文不再兼任列表简介）
 const List<String> kSchemaV4 = <String>[
   "ALTER TABLE character_cards ADD COLUMN summary TEXT NOT NULL DEFAULT ''",
+];
+
+/// v14：每条消息存一份「这一轮结束后的状态栏」快照。
+///
+/// 状态块在入库前就被 StatusParser 从正文里剥掉了，正文里查不到；
+/// 会话上的 status_state 只保留最终值。要导出「每一轮的状态栏」，
+/// 只能在生成当时把合并后的结果留一份。
+///
+/// 存快照而不是增量：导出时不用再按顺序回放合并，老消息也不会因为
+/// 初始状态被改（重新开场）而算错。
+const List<String> kSchemaV14 = <String>[
+  "ALTER TABLE messages ADD COLUMN status_snapshot TEXT NOT NULL DEFAULT ''",
 ];
 
 /// v13：会话标签。

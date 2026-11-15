@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -595,6 +597,17 @@ class ChatController extends FamilyNotifier<ChatState, String> {
       final completionTokens = usage?.completionTokens ?? builder.estimator.estimate(text);
       final isEstimated = usage == null;
 
+      // 合并模型给出的状态更新。
+      // 快照必须在合并的同一处取：状态块入库前就被剥离了，正文里查不到，
+      // 会话上的 status_state 又只有最终值 —— 不在这里留一份，
+      // 导出时就还原不出「这一轮的状态栏」。
+      var statusSnapshot = '';
+      if (parsed.status != null && parsed.status!.isNotEmpty) {
+        final merged = <String, dynamic>{...statusState, ...parsed.status!};
+        _sessionDao.setStatusState(session.id, merged);
+        statusSnapshot = jsonEncode(merged);
+      }
+
       _messageDao.finalize(
         placeholder.id,
         status: MessageStatus.done,
@@ -603,6 +616,7 @@ class ChatController extends FamilyNotifier<ChatState, String> {
         tokenCount: promptTokens + completionTokens,
         finishReason: finishReason,
         latencyMs: elapsed,
+        statusSnapshot: statusSnapshot.isEmpty ? null : statusSnapshot,
       );
       if (!audit.isClean) {
         _messageDao.setAudit(placeholder.id, auditJson);
@@ -613,13 +627,8 @@ class ChatController extends FamilyNotifier<ChatState, String> {
         status: MessageStatus.done,
         reasoning: reasoningBuffer.isEmpty ? null : reasoningBuffer.toString(),
         auditJson: auditJson,
+        statusSnapshot: statusSnapshot.isEmpty ? null : statusSnapshot,
       );
-
-      // 合并模型给出的状态更新
-      if (parsed.status != null && parsed.status!.isNotEmpty) {
-        final merged = <String, dynamic>{...statusState, ...parsed.status!};
-        _sessionDao.setStatusState(session.id, merged);
-      }
       _recordUsage(
         apiConfig: apiConfig,
         card: card,
@@ -808,6 +817,7 @@ class ChatController extends FamilyNotifier<ChatState, String> {
     String? content,
     String? reasoning,
     String? auditJson,
+    String? statusSnapshot,
     MessageStatus? status,
     String? errorMessage,
   }) {
@@ -817,6 +827,7 @@ class ChatController extends FamilyNotifier<ChatState, String> {
         content: content ?? m.content,
         reasoning: reasoning ?? m.reasoning,
         auditJson: auditJson ?? m.auditJson,
+        statusSnapshot: statusSnapshot ?? m.statusSnapshot,
         status: status ?? m.status,
         errorMessage: errorMessage ?? m.errorMessage,
         updatedAt: nowMs(),
