@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app_providers.dart';
@@ -42,26 +43,28 @@ class SettingsPage extends ConsumerWidget {
     }
   }
 
-  /// 支持作者的弹窗：GitHub 与爱发电集中在这里，不占设置页的版面。
+  /// 支持作者的弹窗：GitHub / 爱发电 / 转发 集中在这里，不占设置页的版面。
+  ///
+  /// 三条并列，转发放最后 —— 对这个阶段来说它其实最有用：
+  /// 一个人因此找到它，比一杯咖啡值钱。所以除了文案，还给了一个
+  /// 直接调系统分享的入口（链接已经在里面，不用手动复制）。
   void _showSupportDialog(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        // 不再放标题：弹窗顶部直接是「: )」符号，省掉一行大字更轻
-        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+        contentPadding: const EdgeInsets.fromLTRB(24, 22, 24, 8),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            // 符号表情：比正文大一档，但收在标题与链接行之间，不抢版面。
             Text(
-              ': )',
+              '支持作者：',
               style: TextStyle(
-                fontSize: 30,
-                height: 1.0,
-                letterSpacing: 1.5,
-                fontWeight: FontWeight.w500,
+                fontSize: 16,
+                height: 1.3,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
                 color: scheme.primary,
               ),
             ),
@@ -77,6 +80,15 @@ class SettingsPage extends ConsumerWidget {
             const SizedBox(height: 6),
             Text(
               '愿意的话，可以在爱发电请我喝杯咖啡，或者在 GitHub 上点一颗 star。',
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.7,
+                color: scheme.onSurfaceVariant.withOpacity(0.8),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '或者在你的朋友圈子里帮我宣传一下——把它转给那个也在找手机端角色扮演客户端的人。',
               style: TextStyle(
                 fontSize: 12.5,
                 height: 1.7,
@@ -103,6 +115,17 @@ class SettingsPage extends ConsumerWidget {
                 _openLink(context, _afdianUrl);
               },
             ),
+            const SizedBox(height: 8),
+            _SupportLinkRow(
+              icon: Icons.ios_share_rounded,
+              label: '转发给朋友',
+              detail: '打开系统分享',
+              trailing: Icons.ios_share_rounded,
+              onTap: () {
+                Navigator.of(dialogContext).pop();
+                _shareApp(context);
+              },
+            ),
           ],
         ),
         actions: <Widget>[
@@ -113,6 +136,19 @@ class SettingsPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// 系统分享：链接直接带在文本里，不用对方再问「在哪下」。
+  Future<void> _shareApp(BuildContext context) async {
+    try {
+      await Share.share(
+        '在手机上玩 AI 角色扮演的一个客户端，开源免费、装完就能用：\n'
+        'https://github.com/lampe9703/silas-rp',
+        subject: 'Silas RP',
+      );
+    } catch (_) {
+      if (context.mounted) showToast(context, '分享失败，可以先复制链接');
+    }
   }
 
   void _pushPage(BuildContext context, Widget page) {
@@ -290,7 +326,7 @@ class SettingsPage extends ConsumerWidget {
                 leading: const Icon(Icons.favorite_outline_rounded, size: 20),
                 title: const Text('支持作者', style: TextStyle(fontSize: 14)),
                 subtitle: const Text(
-                  'GitHub · 爱发电',
+                  'GitHub · 爱发电 · 转发给朋友',
                   style: TextStyle(fontSize: 11.5),
                 ),
                 trailing: const Icon(Icons.chevron_right_rounded, size: 18),
@@ -740,12 +776,16 @@ class _SupportLinkRow extends StatelessWidget {
     required this.label,
     required this.detail,
     required this.onTap,
+    this.trailing = Icons.open_in_new_rounded,
   });
 
   final IconData icon;
   final String label;
   final String detail;
   final VoidCallback onTap;
+
+  /// 行尾图标：默认是「打开新页面」，分享这类动作用自己的图标更准
+  final IconData trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -787,7 +827,7 @@ class _SupportLinkRow extends StatelessWidget {
               ),
             ),
             Icon(
-              Icons.open_in_new_rounded,
+              trailing,
               size: 15,
               color: scheme.onSurfaceVariant,
             ),
