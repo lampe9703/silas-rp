@@ -192,8 +192,21 @@ class SettingKeys {
   static const editorDraft = 'editor_draft';
   static const libraryViewMode = 'library_view_mode';
 
-  /// 全局系统提示词（回复风格层）。空串 = 使用内置默认风格。
+  /// 旧版全局系统提示词。**已停用，仅用于迁移**：
+  /// 读取时若没有 [promptThirdPerson]，就用它当第三人称的初值。
   static const systemPrompt = 'system_prompt';
+
+  /// 第一人称系统提示词。空串 = 用内置默认（PromptBuilder.defaultFirstPersonPrompt）。
+  static const promptFirstPerson = 'prompt_first_person';
+
+  /// 第三人称系统提示词。空串 = 用内置默认。
+  static const promptThirdPerson = 'prompt_third_person';
+
+  /// 成人向 · 越狱协议（system 最前那段）。空串 = 内置默认。
+  static const promptJailbreak = 'prompt_jailbreak';
+
+  /// 成人向 · 内容尺度（风格层之后那段）。空串 = 内置默认。
+  static const promptNsfw = 'prompt_nsfw';
 
   /// 是否已通过「关于页连点软件名」解锁成人向设置分区。
   static const nsfwUnlocked = 'nsfw_unlocked';
@@ -222,7 +235,10 @@ class AppSettings {
     this.charsPerToken = 3.0,
     this.outputRatio = 1.0,
     this.libraryViewMode = 'grid',
-    this.systemPrompt = '',
+    this.firstPersonPrompt = '',
+    this.thirdPersonPrompt = '',
+    this.jailbreakPrompt = '',
+    this.nsfwPrompt = '',
     this.nsfwUnlocked = false,
     this.nsfwEnabled = false,
     this.maxReplyLength = 300,
@@ -251,9 +267,17 @@ class AppSettings {
   final double outputRatio;
   final String libraryViewMode;
 
-  /// 全局系统提示词（回复风格层）。空串 = 用内置默认风格；
-  /// 卡片自己的 system_prompt 优先于这里。
-  final String systemPrompt;
+  /// 第一人称系统提示词。空串 = 用内置默认。
+  final String firstPersonPrompt;
+
+  /// 第三人称系统提示词。空串 = 用内置默认。
+  final String thirdPersonPrompt;
+
+  /// 成人向 · 越狱协议（system 最前那段）。空串 = 用内置默认。
+  final String jailbreakPrompt;
+
+  /// 成人向 · 内容尺度（风格层之后那段）。空串 = 用内置默认。
+  final String nsfwPrompt;
 
   /// 是否已解锁成人向分区（关于页连点软件名后置 true）
   final bool nsfwUnlocked;
@@ -280,7 +304,10 @@ class AppSettings {
     double? charsPerToken,
     double? outputRatio,
     String? libraryViewMode,
-    String? systemPrompt,
+    String? firstPersonPrompt,
+    String? thirdPersonPrompt,
+    String? jailbreakPrompt,
+    String? nsfwPrompt,
     bool? nsfwUnlocked,
     bool? nsfwEnabled,
     int? maxReplyLength,
@@ -299,7 +326,10 @@ class AppSettings {
         charsPerToken: charsPerToken ?? this.charsPerToken,
         outputRatio: outputRatio ?? this.outputRatio,
         libraryViewMode: libraryViewMode ?? this.libraryViewMode,
-        systemPrompt: systemPrompt ?? this.systemPrompt,
+        firstPersonPrompt: firstPersonPrompt ?? this.firstPersonPrompt,
+        thirdPersonPrompt: thirdPersonPrompt ?? this.thirdPersonPrompt,
+        jailbreakPrompt: jailbreakPrompt ?? this.jailbreakPrompt,
+        nsfwPrompt: nsfwPrompt ?? this.nsfwPrompt,
         nsfwUnlocked: nsfwUnlocked ?? this.nsfwUnlocked,
         nsfwEnabled: nsfwEnabled ?? this.nsfwEnabled,
         maxReplyLength: maxReplyLength ?? this.maxReplyLength,

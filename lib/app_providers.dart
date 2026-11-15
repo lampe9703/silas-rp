@@ -138,17 +138,33 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
   void setLibraryViewMode(String mode) =>
       _persist(state.copyWith(libraryViewMode: mode));
 
-  /// 全局系统提示词（回复风格层）。传空串表示回到内置默认。
-  void setSystemPrompt(String value) =>
-      _persist(state.copyWith(systemPrompt: value));
+  /// 第一人称系统提示词。传空串表示回到内置默认。
+  void setFirstPersonPrompt(String value) =>
+      _persist(state.copyWith(firstPersonPrompt: value));
 
-  /// 关于页连点软件名后解锁成人向分区（并默认打开）。
-  void unlockNsfw() =>
+  /// 第三人称系统提示词。传空串表示回到内置默认。
+  void setThirdPersonPrompt(String value) =>
+      _persist(state.copyWith(thirdPersonPrompt: value));
+
+  /// 成人向 · 越狱协议。传空串表示回到内置默认。
+  void setJailbreakPrompt(String value) =>
+      _persist(state.copyWith(jailbreakPrompt: value));
+
+  /// 成人向 · 内容尺度。传空串表示回到内置默认。
+  void setNsfwPrompt(String value) =>
+      _persist(state.copyWith(nsfwPrompt: value));
+
+  /// 关于页连点软件名：第一次解锁并开启，之后每次点击都是开关切换。
+  ///
+  /// 不再有界面上的滑块 —— 一个开关放在设置页里，等于把「这软件支持
+  /// 成人向」摆在明面上；连点是个刻意的门槛，也给误触留了缓冲。
+  void toggleNsfwByTap() {
+    if (!state.nsfwUnlocked) {
       _persist(state.copyWith(nsfwUnlocked: true, nsfwEnabled: true));
-
-  /// 关闭成人向：分区随之隐藏，需要重新去关于页解锁。
-  void disableNsfw() =>
-      _persist(state.copyWith(nsfwUnlocked: false, nsfwEnabled: false));
+      return;
+    }
+    _persist(state.copyWith(nsfwEnabled: !state.nsfwEnabled));
+  }
 
   /// 单次回复总字数上限（0 = 不限制）。
   void setMaxReplyLength(int value) =>

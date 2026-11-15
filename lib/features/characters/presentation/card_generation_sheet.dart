@@ -58,8 +58,8 @@ Future<void> showCardGenerationSheet(
                     ),
                     SegmentedButton<String>(
                       segments: const <ButtonSegment<String>>[
-                        ButtonSegment(value: 'character', label: Text('角色')),
-                        ButtonSegment(value: 'author', label: Text('作者')),
+                        ButtonSegment(value: 'character', label: Text('第一人称')),
+                        ButtonSegment(value: 'author', label: Text('第三人称')),
                       ],
                       selected: <String>{narrativeMode},
                       onSelectionChanged: (v) =>
@@ -69,7 +69,8 @@ Future<void> showCardGenerationSheet(
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '角色：以角色本人第一人称回应；作者：第三人称全知，可描写所有角色',
+                  '第一人称：以角色「我」叙述；第三人称：作者视角，可写所有角色。'
+                  '两套各有一份系统提示词，在设置页可以改',
                   style: TextStyle(fontSize: 11, height: 1.5, color: muted),
                 ),
                 const SizedBox(height: 10),

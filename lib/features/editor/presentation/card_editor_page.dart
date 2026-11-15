@@ -2276,6 +2276,12 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
     // 否则对话框关闭时焦点还原会把输入法重新唤出
     parkKeyboard(context);
     final card = _buildCard();
+    final settings = ref.read(appSettingsProvider);
+    // 视角与回复上限的优先级和真实请求一致：卡级 > 全局。
+    // 只读全局会让「这张卡设了作者视角」的预览对不上实际发送的内容。
+    final cardGen = ref.read(cardGenerationDaoProvider).byCard(card.id);
+    final previewMode = cardGen?.narrativeMode ?? settings.narrativeMode;
+    final previewMaxReply = cardGen?.maxReplyLength ?? settings.maxReplyLength;
     // 预览要等于实际请求：扫描文本同样带上状态栏的值，
     // 否则「人格 / 阶段」条目在预览里不出现，和真实发送的内容对不上。
     final statusHint =
@@ -2301,11 +2307,14 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
       card,
       worldText: worldText,
       personaText: personaText,
-      // 预览也要反映设置里的全局提示词，否则看到的内容和实际请求不一致
-      globalStylePrompt: ref.read(appSettingsProvider).systemPrompt,
-      nsfwEnabled: ref.read(appSettingsProvider).nsfwEnabled,
-      maxReplyLength: ref.read(appSettingsProvider).maxReplyLength,
-      narrativeMode: ref.read(appSettingsProvider).narrativeMode,
+      // 预览也要反映设置里的提示词，否则看到的内容和实际请求不一致
+      firstPersonPrompt: settings.firstPersonPrompt,
+      thirdPersonPrompt: settings.thirdPersonPrompt,
+      jailbreakOverride: settings.jailbreakPrompt,
+      nsfwPromptOverride: settings.nsfwPrompt,
+      nsfwEnabled: settings.nsfwEnabled,
+      maxReplyLength: previewMaxReply,
+      narrativeMode: previewMode,
     );
     if (!mounted) return;
     await showDialog<void>(

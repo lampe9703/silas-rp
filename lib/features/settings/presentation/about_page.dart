@@ -56,13 +56,18 @@ class _AboutPageState extends ConsumerState<AboutPage> {
     if (_tapCount < _unlockTaps) return;
     _tapCount = 0;
 
-    final unlocked = ref.read(appSettingsProvider).nsfwUnlocked;
-    if (unlocked) {
-      showToast(context, '成人向设置已解锁，可在设置页调整');
-      return;
+    // 连点软件名 = 成人向的总开关：
+    // 第一次解锁并开启，之后每 7 次点击切换一次开启 / 关闭。
+    final before = ref.read(appSettingsProvider);
+    ref.read(appSettingsProvider.notifier).toggleNsfwByTap();
+    final after = ref.read(appSettingsProvider);
+    if (!before.nsfwUnlocked) {
+      showToast(context, '已开启成人向提示词，可在设置页查看和修改');
+    } else if (after.nsfwEnabled) {
+      showToast(context, '成人向提示词：已开启');
+    } else {
+      showToast(context, '成人向提示词：已关闭');
     }
-    ref.read(appSettingsProvider.notifier).unlockNsfw();
-    showToast(context, '已解锁成人向设置，回到设置页即可看到');
   }
 
   @override

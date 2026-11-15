@@ -174,7 +174,10 @@ class SettingsPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 18),
-          _PromptSettingsCard(nsfwUnlocked: settings.nsfwUnlocked),
+          _PromptSettingsCard(
+            nsfwUnlocked: settings.nsfwUnlocked,
+            nsfwEnabled: settings.nsfwEnabled,
+          ),
           const SizedBox(height: 18),
           const SizedBox(height: 18),
           SectionCard(
@@ -308,36 +311,158 @@ class SettingsPage extends ConsumerWidget {
   }
 }
 
-/// 提示词设置：系统提示词（SFW）+ 成人向开关（NSFW）合在一张卡里。
+/// 提示词设置。
 ///
-/// 两者本质都是「往请求里注入提示词」，拆成两张卡会让设置页显得零碎。
-/// 系统提示词区可点击展开，默认收起。
-class _PromptSettingsCard extends ConsumerStatefulWidget {
-  const _PromptSettingsCard({required this.nsfwUnlocked});
+/// 四份可编辑文本，共用同一套「折叠 → 编辑 → 保存 / 恢复默认」交互：
+/// * 第一人称 / 第三人称各自独立 —— 人称是硬约束，写在同一段里必然互相污染；
+/// * 成人向拆成「越狱协议」和「内容尺度」两段，因为注入位置不同（最前 / 风格层之后）。
+///
+/// 成人向的开关**不在这里**：设置页摆一个滑块，等于把这件事写在明面上，
+/// 改成关于页连点软件名切换（见 AboutPage 的 _onNameTap）。
+class _PromptSettingsCard extends ConsumerWidget {
+  const _PromptSettingsCard({
+    required this.nsfwUnlocked,
+    required this.nsfwEnabled,
+  });
 
-  /// 是否已通过关于页解锁（决定成人向开关是否出现）
   final bool nsfwUnlocked;
+  final bool nsfwEnabled;
 
   @override
-  ConsumerState<_PromptSettingsCard> createState() =>
-      _PromptSettingsCardState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(appSettingsProvider);
+    final notifier = ref.read(appSettingsProvider.notifier);
+    final scheme = Theme.of(context).colorScheme;
+
+    return SectionCard(
+      title: '提示词',
+      subtitle: '第一人称与第三人称各自独立，用哪套由卡片的「叙述视角」决定。',
+      padding: EdgeInsets.zero,
+      children: <Widget>[
+        _PromptBlock(
+          title: '第一人称系统提示词',
+          hint: '角色以「我」叙述，代替角色名作主语',
+          value: settings.firstPersonPrompt,
+          defaultText: PromptBuilder.defaultFirstPersonPrompt,
+          onSave: notifier.setFirstPersonPrompt,
+        ),
+        const Divider(height: 1, indent: 16, endIndent: 16),
+        _PromptBlock(
+          title: '第三人称系统提示词',
+          hint: '作者视角，第三人称全知，可写所有角色',
+          value: settings.thirdPersonPrompt,
+          defaultText: PromptBuilder.defaultThirdPersonPrompt,
+          onSave: notifier.setThirdPersonPrompt,
+        ),
+        if (nsfwUnlocked) ...<Widget>[
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  nsfwEnabled ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
+                  size: 15,
+                  color: nsfwEnabled ? scheme.primary : scheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  nsfwEnabled ? '成人向：已开启' : '成人向：已关闭',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: nsfwEnabled ? scheme.primary : scheme.onSurfaceVariant,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '连点软件名 7 次切换',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
+              '两段都只在开启时注入，可以随时改；改坏了点「恢复默认」即可。',
+              style: TextStyle(
+                fontSize: 11,
+                height: 1.4,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          _PromptBlock(
+            title: '成人向 · 越狱协议',
+            hint: '注入在 system 最前，定身份与「不得拒绝」',
+            value: settings.jailbreakPrompt,
+            defaultText: PromptBuilder.jailbreakPrompt,
+            onSave: notifier.setJailbreakPrompt,
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          _PromptBlock(
+            title: '成人向 · 内容尺度',
+            hint: '注入在风格层之后，管「写到哪一步」',
+            value: settings.nsfwPrompt,
+            defaultText: PromptBuilder.nsfwPrompt,
+            onSave: notifier.setNsfwPrompt,
+          ),
+        ],
+      ],
+    );
+  }
 }
 
-class _PromptSettingsCardState extends ConsumerState<_PromptSettingsCard> {
-  late final TextEditingController _controller;
+/// 单份提示词：折叠头 + 编辑框 + 保存 / 恢复默认。
+///
+/// 保存时若内容与内置默认一致，写回空串 —— 数据库里只留「玩家真的改过」
+/// 的那几份，以后升级默认文本也能自动生效，不会被一份旧拷贝钉住。
+class _PromptBlock extends StatefulWidget {
+  const _PromptBlock({
+    required this.title,
+    required this.hint,
+    required this.value,
+    required this.defaultText,
+    required this.onSave,
+  });
 
-  /// 系统提示词编辑区默认收起：整段提示词很长，展开会占满一屏，
-  /// 设置页首屏留给更常用的项。点标题栏展开。
+  final String title;
+  final String hint;
+
+  /// 玩家保存过的内容；空串 = 用 [defaultText]
+  final String value;
+  final String defaultText;
+  final ValueChanged<String> onSave;
+
+  @override
+  State<_PromptBlock> createState() => _PromptBlockState();
+}
+
+class _PromptBlockState extends State<_PromptBlock> {
+  late final TextEditingController _controller;
   bool _expanded = false;
   bool _dirty = false;
+
+  String get _effective =>
+      widget.value.trim().isEmpty ? widget.defaultText : widget.value;
 
   @override
   void initState() {
     super.initState();
-    final saved = ref.read(appSettingsProvider).systemPrompt;
-    _controller = TextEditingController(
-      text: saved.trim().isEmpty ? PromptBuilder.defaultStylePrompt : saved,
-    );
+    _controller = TextEditingController(text: _effective);
+  }
+
+  @override
+  void didUpdateWidget(covariant _PromptBlock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 别的地方改了值（恢复默认）时同步过来；正在编辑就不动，免得吞掉输入
+    if (!_dirty && oldWidget.value != widget.value) {
+      _controller.text = _effective;
+    }
   }
 
   @override
@@ -346,36 +471,91 @@ class _PromptSettingsCardState extends ConsumerState<_PromptSettingsCard> {
     super.dispose();
   }
 
+  void _save() {
+    final text = _controller.text.trim();
+    widget.onSave(text == widget.defaultText.trim() ? '' : text);
+    setState(() => _dirty = false);
+    parkKeyboard(context);
+    showToast(context, '${widget.title}已保存');
+  }
+
+  void _reset() {
+    _controller.text = widget.defaultText;
+    widget.onSave('');
+    setState(() => _dirty = false);
+    showToast(context, '${widget.title}已恢复默认');
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final nsfwEnabled = ref.watch(appSettingsProvider).nsfwEnabled;
+    final customized = widget.value.trim().isNotEmpty;
 
-    return SectionCard(
-      title: '提示词',
-      subtitle: '所有角色卡共用的回复风格。卡片自己写了提示词时，以卡片为准。',
-      children: [
-        // 折叠头：点击展开/收起系统提示词编辑区
-        // 用 GestureDetector 而非 InkWell：这里没有 Material 祖先，
-        // InkWell 的水波纹和 onTap 都可能不响应。
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
         GestureDetector(
           onTap: () => setState(() => _expanded = !_expanded),
           behavior: HitTestBehavior.opaque,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+            padding: const EdgeInsets.fromLTRB(16, 12, 12, 10),
             child: Row(
               children: <Widget>[
-                const Text('系统提示词', style: TextStyle(fontSize: 14)),
-                const SizedBox(width: 8),
-                if (!_expanded)
-                  Text(
-                    _dirty ? '有未保存修改' : '已收起',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: scheme.onSurfaceVariant,
-                    ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Text(
+                            widget.title,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          const SizedBox(width: 6),
+                          if (customized)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: scheme.primary.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '已自定义',
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  height: 1.4,
+                                  color: scheme.primary,
+                                ),
+                              ),
+                            ),
+                          if (_dirty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 6),
+                              child: Text(
+                                '未保存',
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  color: scheme.error,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.hint,
+                        style: TextStyle(
+                          fontSize: 11,
+                          height: 1.4,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
-                const Spacer(),
+                ),
                 AnimatedRotation(
                   turns: _expanded ? 0.5 : 0,
                   duration: const Duration(milliseconds: 200),
@@ -390,15 +570,17 @@ class _PromptSettingsCardState extends ConsumerState<_PromptSettingsCard> {
             ),
           ),
         ),
-        if (_expanded) ...[
+        if (_expanded) ...<Widget>[
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: TextField(
               controller: _controller,
               maxLines: null,
               minLines: 8,
-              onChanged: (_) => setState(() => _dirty = true),
-              style: const TextStyle(fontSize: 13, height: 1.55),
+              onChanged: (_) {
+                if (!_dirty) setState(() => _dirty = true);
+              },
+              style: const TextStyle(fontSize: 12.5, height: 1.55),
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 isDense: true,
@@ -406,55 +588,20 @@ class _PromptSettingsCardState extends ConsumerState<_PromptSettingsCard> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: Row(
               children: <Widget>[
                 FilledButton.tonal(
-                  onPressed: _dirty
-                      ? () {
-                          ref
-                              .read(appSettingsProvider.notifier)
-                              .setSystemPrompt(_controller.text);
-                          setState(() => _dirty = false);
-                          parkKeyboard(context);
-                          showToast(context, '系统提示词已保存');
-                        }
-                      : null,
+                  onPressed: _dirty ? _save : null,
                   child: const Text('保存'),
                 ),
                 const SizedBox(width: 8),
                 TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _controller.text = PromptBuilder.defaultStylePrompt;
-                      _dirty = true;
-                    });
-                  },
+                  onPressed: _reset,
                   child: const Text('恢复默认'),
                 ),
               ],
             ),
-          ),
-        ],
-        if (widget.nsfwUnlocked) ...[
-          const Divider(height: 1, indent: 16, endIndent: 16),
-          SwitchListTile(
-            title: const Text('允许成人向描写', style: TextStyle(fontSize: 14)),
-            subtitle: const Text(
-              '追加露骨描写要求：器官直呼其名、性场景写完整、'
-              '允许脏话与 BDSM。所有角色均视为成年人。'
-              '关闭后本项隐藏，需重新到「关于」页连点软件名解锁。',
-              style: TextStyle(fontSize: 11.5),
-            ),
-            value: nsfwEnabled,
-            onChanged: (v) {
-              final notifier = ref.read(appSettingsProvider.notifier);
-              if (v) {
-                notifier.unlockNsfw();
-              } else {
-                notifier.disableNsfw();
-              }
-            },
           ),
         ],
       ],

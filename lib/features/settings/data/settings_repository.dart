@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../../core/prompt/prompt_builder.dart';
 import '../../../core/security/secure_key_store.dart';
 import '../../../core/utils/ids.dart';
 import '../../../core/utils/time_utils.dart';
@@ -61,7 +62,11 @@ class SettingsRepository {
       outputRatio:
           double.tryParse(raw[SettingKeys.outputRatio] ?? '') ?? defaults.outputRatio,
       libraryViewMode: raw[SettingKeys.libraryViewMode] ?? defaults.libraryViewMode,
-      systemPrompt: raw[SettingKeys.systemPrompt] ?? defaults.systemPrompt,
+      firstPersonPrompt: raw[SettingKeys.promptFirstPerson] ?? '',
+      thirdPersonPrompt: raw[SettingKeys.promptThirdPerson] ??
+          _migrateThirdPerson(raw[SettingKeys.systemPrompt]),
+      jailbreakPrompt: raw[SettingKeys.promptJailbreak] ?? '',
+      nsfwPrompt: raw[SettingKeys.promptNsfw] ?? '',
       nsfwUnlocked:
           (raw[SettingKeys.nsfwUnlocked] ?? 'false') == 'true',
       nsfwEnabled: (raw[SettingKeys.nsfwEnabled] ?? 'false') == 'true',
@@ -87,12 +92,24 @@ class SettingsRepository {
       SettingKeys.charsPerToken: '${settings.charsPerToken}',
       SettingKeys.outputRatio: '${settings.outputRatio}',
       SettingKeys.libraryViewMode: settings.libraryViewMode,
-      SettingKeys.systemPrompt: settings.systemPrompt,
+      SettingKeys.promptFirstPerson: settings.firstPersonPrompt,
+      SettingKeys.promptThirdPerson: settings.thirdPersonPrompt,
+      SettingKeys.promptJailbreak: settings.jailbreakPrompt,
+      SettingKeys.promptNsfw: settings.nsfwPrompt,
       SettingKeys.nsfwUnlocked: '${settings.nsfwUnlocked}',
       SettingKeys.nsfwEnabled: '${settings.nsfwEnabled}',
       SettingKeys.maxReplyLength: '${settings.maxReplyLength}',
       SettingKeys.narrativeMode: settings.narrativeMode,
     });
+  }
+
+  /// 老版本只有一份全局提示词，且它是**风格层**——人称契约是代码另外硬拼的。
+  /// 直接搬过去会让人称契约丢掉（不替用户做决定、不跳角色这些），
+  /// 所以把第三人称的契约补在它前面，和改动前的实际请求保持一致。
+  static String _migrateThirdPerson(String? legacy) {
+    final text = (legacy ?? '').trim();
+    if (text.isEmpty) return '';
+    return '${PromptBuilder.authorContract}\n\n$text';
   }
 
   String? rawSetting(String key) => _settingsDao.get(key);
