@@ -202,10 +202,11 @@ class SettingKeys {
   /// 第三人称系统提示词。空串 = 用内置默认。
   static const promptThirdPerson = 'prompt_third_person';
 
-  /// 成人向 · 越狱协议（system 最前那段）。空串 = 内置默认。
-  static const promptJailbreak = 'prompt_jailbreak';
+  /// 成人向提示词（破限 + 尺度合成的一份）。空串 = 内置默认。
+  static const promptAdult = 'prompt_adult';
 
-  /// 成人向 · 内容尺度（风格层之后那段）。空串 = 内置默认。
+  /// 旧版拆开的两段，**已停用，仅用于迁移**。
+  static const promptJailbreak = 'prompt_jailbreak';
   static const promptNsfw = 'prompt_nsfw';
 
   /// 是否已通过「关于页连点软件名」解锁成人向设置分区。
@@ -237,8 +238,7 @@ class AppSettings {
     this.libraryViewMode = 'grid',
     this.firstPersonPrompt = '',
     this.thirdPersonPrompt = '',
-    this.jailbreakPrompt = '',
-    this.nsfwPrompt = '',
+    this.adultPrompt = '',
     this.nsfwUnlocked = false,
     this.nsfwEnabled = false,
     this.maxReplyLength = 300,
@@ -276,11 +276,8 @@ class AppSettings {
   /// 第三人称系统提示词。空串 = 用内置默认。
   final String thirdPersonPrompt;
 
-  /// 成人向 · 越狱协议（system 最前那段）。空串 = 用内置默认。
-  final String jailbreakPrompt;
-
-  /// 成人向 · 内容尺度（风格层之后那段）。空串 = 用内置默认。
-  final String nsfwPrompt;
+  /// 成人向提示词（破限 + 尺度合成的一份）。空串 = 用内置默认。
+  final String adultPrompt;
 
   /// 是否已解锁成人向分区（关于页连点软件名后置 true）
   final bool nsfwUnlocked;
@@ -309,8 +306,7 @@ class AppSettings {
     String? libraryViewMode,
     String? firstPersonPrompt,
     String? thirdPersonPrompt,
-    String? jailbreakPrompt,
-    String? nsfwPrompt,
+    String? adultPrompt,
     bool? nsfwUnlocked,
     bool? nsfwEnabled,
     int? maxReplyLength,
@@ -331,8 +327,7 @@ class AppSettings {
         libraryViewMode: libraryViewMode ?? this.libraryViewMode,
         firstPersonPrompt: firstPersonPrompt ?? this.firstPersonPrompt,
         thirdPersonPrompt: thirdPersonPrompt ?? this.thirdPersonPrompt,
-        jailbreakPrompt: jailbreakPrompt ?? this.jailbreakPrompt,
-        nsfwPrompt: nsfwPrompt ?? this.nsfwPrompt,
+        adultPrompt: adultPrompt ?? this.adultPrompt,
         nsfwUnlocked: nsfwUnlocked ?? this.nsfwUnlocked,
         nsfwEnabled: nsfwEnabled ?? this.nsfwEnabled,
         maxReplyLength: maxReplyLength ?? this.maxReplyLength,

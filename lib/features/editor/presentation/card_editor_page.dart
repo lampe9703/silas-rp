@@ -2310,8 +2310,7 @@ class _CardEditorPageState extends ConsumerState<CardEditorPage> {
       // 预览也要反映设置里的提示词，否则看到的内容和实际请求不一致
       firstPersonPrompt: settings.firstPersonPrompt,
       thirdPersonPrompt: settings.thirdPersonPrompt,
-      jailbreakOverride: settings.jailbreakPrompt,
-      nsfwPromptOverride: settings.nsfwPrompt,
+      adultPromptOverride: settings.adultPrompt,
       nsfwEnabled: settings.nsfwEnabled,
       maxReplyLength: previewMaxReply,
       narrativeMode: previewMode,

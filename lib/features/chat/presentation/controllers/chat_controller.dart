@@ -491,9 +491,8 @@ class ChatController extends FamilyNotifier<ChatState, String> {
       // 两套系统提示词：用哪套由叙述视角决定，空串时构建器回落到内置默认
       firstPersonPrompt: settings.firstPersonPrompt,
       thirdPersonPrompt: settings.thirdPersonPrompt,
-      // 成人向的两段提示词（玩家可改）
-      jailbreakOverride: settings.jailbreakPrompt,
-      nsfwPromptOverride: settings.nsfwPrompt,
+      // 成人向提示词（破限 + 尺度合成一份，玩家可改）
+      adultPromptOverride: settings.adultPrompt,
       // 成人向尺度：仅在设置里主动开启时注入
       nsfwEnabled: settings.nsfwEnabled,
       // 单句对话字数上限（0 = 不限）

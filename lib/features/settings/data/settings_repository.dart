@@ -65,8 +65,11 @@ class SettingsRepository {
       firstPersonPrompt: raw[SettingKeys.promptFirstPerson] ?? '',
       thirdPersonPrompt: raw[SettingKeys.promptThirdPerson] ??
           _migrateThirdPerson(raw[SettingKeys.systemPrompt]),
-      jailbreakPrompt: raw[SettingKeys.promptJailbreak] ?? '',
-      nsfwPrompt: raw[SettingKeys.promptNsfw] ?? '',
+      adultPrompt: raw[SettingKeys.promptAdult] ??
+          _migrateAdult(
+            raw[SettingKeys.promptJailbreak],
+            raw[SettingKeys.promptNsfw],
+          ),
       nsfwUnlocked:
           (raw[SettingKeys.nsfwUnlocked] ?? 'false') == 'true',
       nsfwEnabled: (raw[SettingKeys.nsfwEnabled] ?? 'false') == 'true',
@@ -94,8 +97,7 @@ class SettingsRepository {
       SettingKeys.libraryViewMode: settings.libraryViewMode,
       SettingKeys.promptFirstPerson: settings.firstPersonPrompt,
       SettingKeys.promptThirdPerson: settings.thirdPersonPrompt,
-      SettingKeys.promptJailbreak: settings.jailbreakPrompt,
-      SettingKeys.promptNsfw: settings.nsfwPrompt,
+      SettingKeys.promptAdult: settings.adultPrompt,
       SettingKeys.nsfwUnlocked: '${settings.nsfwUnlocked}',
       SettingKeys.nsfwEnabled: '${settings.nsfwEnabled}',
       SettingKeys.maxReplyLength: '${settings.maxReplyLength}',
@@ -110,6 +112,17 @@ class SettingsRepository {
     final text = (legacy ?? '').trim();
     if (text.isEmpty) return '';
     return '${PromptBuilder.authorContract}\n\n$text';
+  }
+
+  /// 旧版把成人向拆成「越狱协议」和「内容尺度」两段，现在合成一份。
+  /// 迁移时按原顺序拼起来（破限在前、尺度在后），和改动前的注入顺序一致。
+  static String _migrateAdult(String? jailbreak, String? nsfw) {
+    final a = (jailbreak ?? '').trim();
+    final b = (nsfw ?? '').trim();
+    if (a.isEmpty && b.isEmpty) return '';
+    if (a.isEmpty) return b;
+    if (b.isEmpty) return a;
+    return '$a\n\n$b';
   }
 
   String? rawSetting(String key) => _settingsDao.get(key);

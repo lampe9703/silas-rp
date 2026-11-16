@@ -146,13 +146,9 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
   void setThirdPersonPrompt(String value) =>
       _persist(state.copyWith(thirdPersonPrompt: value));
 
-  /// 成人向 · 越狱协议。传空串表示回到内置默认。
-  void setJailbreakPrompt(String value) =>
-      _persist(state.copyWith(jailbreakPrompt: value));
-
-  /// 成人向 · 内容尺度。传空串表示回到内置默认。
-  void setNsfwPrompt(String value) =>
-      _persist(state.copyWith(nsfwPrompt: value));
+  /// 成人向提示词（破限 + 尺度合成的一份）。传空串表示回到内置默认。
+  void setAdultPrompt(String value) =>
+      _persist(state.copyWith(adultPrompt: value));
 
   /// 关于页连点软件名：第一次解锁并开启，之后每次点击都是开关切换。
   ///

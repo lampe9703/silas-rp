@@ -368,7 +368,6 @@ class _PromptSettingsCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(appSettingsProvider);
     final notifier = ref.read(appSettingsProvider.notifier);
-    final scheme = Theme.of(context).colorScheme;
 
     return SectionCard(
       title: '提示词',
@@ -390,62 +389,17 @@ class _PromptSettingsCard extends ConsumerWidget {
           defaultText: PromptBuilder.defaultThirdPersonPrompt,
           onSave: notifier.setThirdPersonPrompt,
         ),
-        if (nsfwUnlocked) ...<Widget>[
+        // 成人向整块只在「已解锁 + 已开启」时出现：关掉就什么都不显示。
+        // 开关做成连点软件名，本来就是为了这个 —— 设置页不该留任何
+        // 「这软件支持成人向」的痕迹，哪怕只是一行状态。
+        if (nsfwUnlocked && nsfwEnabled) ...<Widget>[
           const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
-            child: Row(
-              children: <Widget>[
-                Icon(
-                  nsfwEnabled ? Icons.lock_open_rounded : Icons.lock_outline_rounded,
-                  size: 15,
-                  color: nsfwEnabled ? scheme.primary : scheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  nsfwEnabled ? '成人向：已开启' : '成人向：已关闭',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: nsfwEnabled ? scheme.primary : scheme.onSurfaceVariant,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '连点软件名 7 次切换',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Text(
-              '两段都只在开启时注入，可以随时改；改坏了点「恢复默认」即可。',
-              style: TextStyle(
-                fontSize: 11,
-                height: 1.4,
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-          ),
           _PromptBlock(
-            title: '成人向 · 越狱协议',
-            hint: '注入在 system 最前，定身份与「不得拒绝」',
-            value: settings.jailbreakPrompt,
-            defaultText: PromptBuilder.jailbreakPrompt,
-            onSave: notifier.setJailbreakPrompt,
-          ),
-          const Divider(height: 1, indent: 16, endIndent: 16),
-          _PromptBlock(
-            title: '成人向 · 内容尺度',
-            hint: '注入在风格层之后，管「写到哪一步」',
-            value: settings.nsfwPrompt,
-            defaultText: PromptBuilder.nsfwPrompt,
-            onSave: notifier.setNsfwPrompt,
+            title: '成人向提示词',
+            hint: '注入在 system 最前；连点软件名 7 次可关闭',
+            value: settings.adultPrompt,
+            defaultText: PromptBuilder.adultPrompt,
+            onSave: notifier.setAdultPrompt,
           ),
         ],
       ],
