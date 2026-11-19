@@ -155,12 +155,34 @@ class OpenAiClient {
       throw ApiException(ApiErrorKind.unknown, '响应为空');
     }
 
+    // 有些中转对个别模型不支持 SSE，回的是**一整段 JSON**
+    // （Content-Type: application/json）。这时逐行找 `data:` 一个都找不到，
+    // 表现就是「空气泡 + finish_reason=无」。按 Content-Type 分流即可。
+    final contentType =
+        (response.headers.value('content-type') ?? '').toLowerCase();
+    if (!contentType.contains('event-stream')) {
+      final bytes = await stream.fold<List<int>>(
+        <int>[],
+        (acc, chunk) => acc..addAll(chunk),
+      );
+      final whole = utf8.decode(bytes, allowMalformed: true);
+      final events = _eventsFromWholeBody(whole);
+      if (events.isNotEmpty) {
+        for (final e in events) {
+          yield e;
+        }
+        return;
+      }
+    }
+
     // utf8.decoder 处理跨 chunk 的多字节字符；LineSplitter 处理 \r\n
     final lines =
         utf8.decoder.bind(stream).transform(const LineSplitter());
 
     String? finishReason;
     TokenUsage? usage;
+    // 有没有解析出任何有效事件。全程 false 说明这个模型根本不走 SSE。
+    var sawAnything = false;
 
     // 取消/断网发生在流消费阶段时，dio 会把 DioException 直接塞进字节流，
     // 必须在这里转成 ApiException，否则上层会当成「生成失败」而不是「已取消」。
@@ -210,11 +232,16 @@ class OpenAiClient {
                 ? (delta['reasoning_content'] ?? delta['reasoning'])
                 : (choice['reasoning_content'] ?? choice['reasoning']);
             final fr = choice['finish_reason'];
-            if (fr is String && fr.isNotEmpty) finishReason = fr;
+            if (fr is String && fr.isNotEmpty) {
+              finishReason = fr;
+              sawAnything = true;
+            }
             if (rawReasoning is String && rawReasoning.isNotEmpty) {
+              sawAnything = true;
               yield ChatStreamEvent(reasoningDelta: rawReasoning);
             }
             if (content != null && content.isNotEmpty) {
+              sawAnything = true;
               yield ChatStreamEvent(contentDelta: content, finishReason: finishReason);
             }
           }
@@ -239,8 +266,101 @@ class OpenAiClient {
       throw ApiException(ApiErrorKind.network, e.message ?? '网络异常');
     }
 
+    // 整个流一个有效事件都没有：这个模型/中转多半不支持流式，
+    // 退回一次性请求再取一遍，比给用户一个空气泡强。
+    if (!sawAnything) {
+      body['stream'] = false;
+      body.remove('stream_options');
+      final full = await _post(config, apiKey, body, cancelToken);
+      final bytes = await full.data!.stream.fold<List<int>>(
+        <int>[],
+        (acc, chunk) => acc..addAll(chunk),
+      );
+      final events = _eventsFromWholeBody(
+        utf8.decode(bytes, allowMalformed: true),
+      );
+      if (events.isNotEmpty) {
+        for (final e in events) {
+          yield e;
+        }
+        return;
+      }
+    }
+
     // 连接被对端关闭但没收到 [DONE]
     yield ChatStreamEvent(isDone: true, finishReason: finishReason, usage: usage);
+  }
+
+  /// 把「一次性返回的完整 JSON」转成事件序列。
+  ///
+  /// 兼容标准 chat/completions 结构；正文形状交给 [_textOf] 处理。
+  static List<ChatStreamEvent> _eventsFromWholeBody(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return const <ChatStreamEvent>[];
+
+    Object? decoded;
+    try {
+      decoded = jsonDecode(trimmed);
+    } catch (_) {
+      // 不是 JSON（比如网关的 HTML 错误页）：交给上层当空响应处理
+      return const <ChatStreamEvent>[];
+    }
+    if (decoded is! Map<String, dynamic>) return const <ChatStreamEvent>[];
+
+    if (decoded['error'] != null) {
+      final err = decoded['error'];
+      throw ApiException(
+        ApiErrorKind.server,
+        err is Map ? '${err['message'] ?? err}' : '$err',
+      );
+    }
+
+    final events = <ChatStreamEvent>[];
+    String? finish;
+    final choices = decoded['choices'];
+    if (choices is List && choices.isNotEmpty) {
+      final choice = choices.first;
+      if (choice is Map) {
+        final message = choice['message'];
+        final content = _textOf(
+          (message is Map ? message['content'] : null) ?? choice['content'],
+        );
+        final reasoning = _textOf(
+          (message is Map ? message['reasoning_content'] : null) ??
+              choice['reasoning_content'],
+        );
+        final fr = choice['finish_reason'];
+        if (fr is String && fr.isNotEmpty) finish = fr;
+        if (reasoning != null && reasoning.isNotEmpty) {
+          events.add(ChatStreamEvent(reasoningDelta: reasoning));
+        }
+        if (content != null && content.isNotEmpty) {
+          events.add(
+            ChatStreamEvent(contentDelta: content, finishReason: finish),
+          );
+        }
+      }
+    }
+    events.add(
+      ChatStreamEvent(
+        isDone: true,
+        finishReason: finish,
+        usage: _usageOf(decoded['usage']),
+      ),
+    );
+    return events;
+  }
+
+  static TokenUsage? _usageOf(Object? raw) {
+    if (raw is! Map) return null;
+    final pt = (raw['prompt_tokens'] as num?)?.toInt() ?? 0;
+    final ct = (raw['completion_tokens'] as num?)?.toInt() ?? 0;
+    final tt = (raw['total_tokens'] as num?)?.toInt() ?? (pt + ct);
+    return TokenUsage(
+      promptTokens: pt,
+      completionTokens: ct,
+      totalTokens: tt,
+    );
   }
 
   /// 从各种形状里抠出正文字符串。
