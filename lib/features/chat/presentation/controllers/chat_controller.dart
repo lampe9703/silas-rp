@@ -587,6 +587,17 @@ class ChatController extends FamilyNotifier<ChatState, String> {
       final text = parsed.visibleText
           .replaceAll('\u201c', '"')
           .replaceAll('\u201d', '"');
+      // 上游返回 200 却一个正文字都没给（或者只给了一个状态块）：
+      // 以前会安静地存成一条空气泡，比报错更难排查。这里直接当失败处理，
+      // 让用户至少看到「上游没给正文」，而不是怀疑自己点错了。
+      if (text.trim().isEmpty && reasoningBuffer.isEmpty) {
+        throw ApiException(
+          ApiErrorKind.server,
+          '上游没有返回正文（finish_reason=${finishReason ?? '无'}）。'
+          '常见原因：中转把正文放进了非标准字段，或该模型不支持流式输出。',
+        );
+      }
+
       // 本地规则审校：零 token、纯确定性。只查「模型有没有拒绝写」。
       final audit = const ResponseAuditor().audit(
         raw: buffer.toString(),

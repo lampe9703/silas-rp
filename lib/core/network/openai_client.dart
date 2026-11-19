@@ -196,7 +196,14 @@ class OpenAiClient {
           final choice = choices.first;
           if (choice is Map) {
             final delta = choice['delta'];
-            final content = delta is Map ? delta['content'] : null;
+            // 正文：优先 delta.content，没有就退回 choice.message.content
+            // （有些中转在流里直接塞完整 message，不给 delta）。
+            final content = _textOf(
+              (delta is Map ? delta['content'] : null) ??
+                  (choice['message'] is Map
+                      ? (choice['message'] as Map)['content']
+                      : null),
+            );
             // 思考：delta.reasoning_content 为主，兼容 delta.reasoning；
             // 个别中转把它放在 choice 一层，顺手也认一下。
             final rawReasoning = delta is Map
@@ -207,7 +214,7 @@ class OpenAiClient {
             if (rawReasoning is String && rawReasoning.isNotEmpty) {
               yield ChatStreamEvent(reasoningDelta: rawReasoning);
             }
-            if (content is String && content.isNotEmpty) {
+            if (content != null && content.isNotEmpty) {
               yield ChatStreamEvent(contentDelta: content, finishReason: finishReason);
             }
           }
@@ -234,6 +241,32 @@ class OpenAiClient {
 
     // 连接被对端关闭但没收到 [DONE]
     yield ChatStreamEvent(isDone: true, finishReason: finishReason, usage: usage);
+  }
+
+  /// 从各种形状里抠出正文字符串。
+  ///
+  /// 标准 OpenAI 流式是 `delta.content: "..."`，但 Gemini 系中转常给
+  /// `content: [{"type":"text","text":"..."}]`，也有给 `{"text": "..."}` 的。
+  /// 以前只认 String，其它形状会被静默丢掉 —— 表现就是「气泡是空的、也不报错」。
+  static String? _textOf(Object? raw) {
+    if (raw == null) return null;
+    if (raw is String) return raw;
+    if (raw is List) {
+      final buf = StringBuffer();
+      for (final part in raw) {
+        final piece = _textOf(part);
+        if (piece != null) buf.write(piece);
+      }
+      return buf.isEmpty ? null : buf.toString();
+    }
+    if (raw is Map) {
+      for (final key in const <String>['text', 'content', 'value']) {
+        final piece = _textOf(raw[key]);
+        if (piece != null) return piece;
+      }
+      return null;
+    }
+    return null;
   }
 
   Future<Response<ResponseBody>> _post(
