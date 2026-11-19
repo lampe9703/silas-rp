@@ -155,33 +155,57 @@ class OpenAiClient {
       throw ApiException(ApiErrorKind.unknown, '响应为空');
     }
 
-    // 有些中转对个别模型不支持 SSE，回的是**一整段 JSON**
-    // （Content-Type: application/json）。这时逐行找 `data:` 一个都找不到，
-    // 表现就是「空气泡 + finish_reason=无」。按 Content-Type 分流即可。
+    // ResponseBody.stream 是单次订阅流。非 SSE 响应只读取一次；若无法
+    // 解析成完整 JSON，则用新的非流式请求兜底，不再订阅这个响应流。
     final contentType =
         (response.headers.value('content-type') ?? '').toLowerCase();
     if (!contentType.contains('event-stream')) {
-      final bytes = await stream.fold<List<int>>(
-        <int>[],
-        (acc, chunk) => acc..addAll(chunk),
+      late final List<int> bytes;
+      try {
+        bytes = await stream.fold<List<int>>(
+          <int>[],
+          (acc, chunk) => acc..addAll(chunk),
+        );
+      } on DioException catch (e) {
+        if (CancelToken.isCancel(e)) {
+          throw ApiException(ApiErrorKind.cancelled, '已取消');
+        }
+        throw ApiException(ApiErrorKind.network, e.message ?? '网络异常');
+      }
+      final events = _eventsFromWholeBody(
+        utf8.decode(bytes, allowMalformed: true),
       );
-      final whole = utf8.decode(bytes, allowMalformed: true);
-      final events = _eventsFromWholeBody(whole);
       if (events.isNotEmpty) {
         for (final e in events) {
           yield e;
         }
         return;
       }
+
+      body['stream'] = false;
+      body.remove('stream_options');
+      final full = await _post(config, apiKey, body, cancelToken);
+      final fullBytes = await full.data!.stream.fold<List<int>>(
+        <int>[],
+        (acc, chunk) => acc..addAll(chunk),
+      );
+      final fallbackEvents = _eventsFromWholeBody(
+        utf8.decode(fullBytes, allowMalformed: true),
+      );
+      for (final event in fallbackEvents) {
+        yield event;
+      }
+      if (fallbackEvents.isNotEmpty) return;
+      throw ApiException(ApiErrorKind.unknown, '无法解析模型响应');
     }
 
-    // utf8.decoder 处理跨 chunk 的多字节字符；LineSplitter 处理 \r\n
-    final lines =
-        utf8.decoder.bind(stream).transform(const LineSplitter());
+    // SSE 仍从网络流逐行解析，保持实时增量输出。
+    // utf8.decoder 处理跨 chunk 的多字节字符；LineSplitter 处理 \r\n。
+    final lines = utf8.decoder.bind(stream).transform(const LineSplitter());
 
     String? finishReason;
     TokenUsage? usage;
-    // 有没有解析出任何有效事件。全程 false 说明这个模型根本不走 SSE。
+    // 记录是否收到有效 SSE 内容或结束原因。
     var sawAnything = false;
 
     // 取消/断网发生在流消费阶段时，dio 会把 DioException 直接塞进字节流，
@@ -266,8 +290,7 @@ class OpenAiClient {
       throw ApiException(ApiErrorKind.network, e.message ?? '网络异常');
     }
 
-    // 整个流一个有效事件都没有：这个模型/中转多半不支持流式，
-    // 退回一次性请求再取一遍，比给用户一个空气泡强。
+    // SSE 流没有任何有效事件时，退回一次性请求再取一遍。
     if (!sawAnything) {
       body['stream'] = false;
       body.remove('stream_options');
